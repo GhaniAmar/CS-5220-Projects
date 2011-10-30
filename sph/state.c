@@ -31,6 +31,13 @@ sim_state_t* alloc_state(int n, sim_param_t* params)
     return s;
 }
 
+int len(particle_t* particle) {
+    int n = 0;
+    while (particle) {particle = particle->next; n++;}
+    return n;
+}
+
+
 void clear_bins(sim_state_t* state) {
     int i;
 
@@ -63,34 +70,40 @@ void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t**
         node_buffer[i] = NULL;
 
     width = state->nbinwidth;
-    row = (particle->x[1]) * width;
-    column = (particle->x[0]) * width;
+    row = floor((particle->x[1]) * width);
+    column = floor((particle->x[0]) * width);
 
+    /* Add the bin containing the particle */
     node_buffer[j++] = state->bins[column * width + row];
 
-    h_lower = (particle->x[1]) - (row / width);
-    h_upper = (row + 1) / width - (particle->x[1]);
-    v_lower = (particle->x[0]) - (column / width);
-    v_upper = (column + 1) / width - (particle->x[0]);
+    /* Compute distances from the particle to the edges of containing bin */
+    v_lower = (particle->x[1]) - (row / width);
+    v_upper = (row + 1) / width - (particle->x[1]);
+    h_lower = (particle->x[0]) - (column / width);
+    h_upper = (column + 1) / width - (particle->x[0]);
 
-    if (h_lower < h && row > 0)
+    /* If vertical distances are less than h, add the bin above or below */
+    if (v_lower < h && row > 0)
         node_buffer[j++] = state->bins[column * width + row - 1];
-    else if (h_upper < h && row < (width - 1))
+    else if (v_upper < h && row < (width - 1))
         node_buffer[j++] = state->bins[column * width + row + 1];
 
-    if (v_lower < h && column > 0)
+    /* If the horizontal distances are less than h, add the bin to the left or right */
+    if (h_lower < h && column > 0)
         node_buffer[j++] = state->bins[(column - 1) * width + row];
-    else if (v_upper < h && column < (width - 1))
+    else if (h_upper < h && column < (width - 1))
         node_buffer[j++] = state->bins[(column + 1) * width + row];
 
+    /* Compute the distances from the particle to the corners of the bin */
     nw = SQ((column/width) - particle->x[0]) + SQ((row/width) - particle->x[1]);
     ne = SQ((column + 1)/width - particle->x[0]) + SQ((row/width) - particle->x[1]);
     se = SQ((column/width) - particle->x[0]) + SQ((row + 1)/width - particle->x[1]);
     sw = SQ((column + 1)/width - particle->x[0]) + SQ((row + 1)/width - particle->x[1]);
 
+    /* Add the diagonal bins if the distances are less than h */
     if (nw < h2 && column > 0 && row > 0)
         node_buffer[j++] = state->bins[(column - 1) * width + (row - 1)];
-    else if (se < h && column < (width - 1) && row << (width - 1))
+    else if (se < h && column < (width - 1) && row < (width - 1))
         node_buffer[j++] = state->bins[(column + 1) * width + (row + 1)];
 
     if (ne < h2 && column < (width - 1) && row > 0)
