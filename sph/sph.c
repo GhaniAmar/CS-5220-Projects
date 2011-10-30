@@ -50,7 +50,7 @@ int circ_indicator(float x, float y)
  * with cell sizes of $h/1.3$.  This is close enough to allow the
  * particles to overlap somewhat, but not too much.
  *@c*/
-sim_state_t* place_particles(sim_param_t* param,
+sim_state_t* place_particles(sim_param_t* param, 
                              domain_fun_t indicatef)
 {
     float h  = param->h;
@@ -68,15 +68,15 @@ sim_state_t* place_particles(sim_param_t* param,
     for (float x = 0; x < 1; x += hh) {
         for (float y = 0; y < 1; y += hh) {
             if (indicatef(x,y)) {
-                s->bins[p].x[0] = x;
-                s->bins[p].x[1] = y;
-                s->bins[p].v[0] = 0;
-                s->bins[p].v[1] = 0;
+                s->x[2*p+0] = x;
+                s->x[2*p+1] = y;
+                s->v[2*p+0] = 0;
+                s->v[2*p+1] = 0;
                 ++p;
             }
         }
     }
-    return s;
+    return s;    
 }
 
 /*@T
@@ -99,12 +99,9 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
     float rho0 = param->rho0;
     float rho2s = 0;
     float rhos  = 0;
-    float trho = 0;
-
     for (int i = 0; i < s->n; ++i) {
-        trho = s->bins[i].rho;
-        rho2s += trho * trho;
-        rhos += trho;
+        rho2s += (s->rho[i])*(s->rho[i]);
+        rhos  += s->rho[i];
     }
     s->mass *= ( rho0*rhos / rho2s );
 }
@@ -128,23 +125,19 @@ sim_state_t* init_particles(sim_param_t* param)
 
 void check_state(sim_state_t* s)
 {
-    float xi, yi;
-
     for (int i = 0; i < s->n; ++i) {
-        xi = s->bins[i].x[0];
-        yi = s->bins[i].x[1];
-        assert( xi >= 0 && xi <= 1 );
-        assert( yi >= 0 && yi <= 1 );
+        float xi = s->x[2*i+0];
+        float yi = s->x[2*i+1];
+        assert( xi >= 0 || xi <= 1 );
+        assert( yi >= 0 || yi <= 1 );
     }
 }
 
 int main(int argc, char** argv)
 {
     sim_param_t params;
-
     if (get_params(argc, argv, &params) != 0)
         exit(-1);
-
     sim_state_t* state = init_particles(&params);
     FILE* fp    = fopen(params.fname, "w");
     int nframes = params.nframes;
@@ -154,7 +147,7 @@ int main(int argc, char** argv)
 
     tic(0);
     write_header(fp, n);
-    write_frame_data(fp, state, NULL);
+    write_frame_data(fp, n, state->x, NULL);
     compute_accel(state, &params);
     leapfrog_start(state, dt);
     check_state(state);
@@ -164,7 +157,7 @@ int main(int argc, char** argv)
             leapfrog_step(state, dt);
             check_state(state);
         }
-        write_frame_data(fp, state, NULL);
+        write_frame_data(fp, n, state->x, NULL);
     }
     printf("Ran in %g seconds\n", toc(0));
 
