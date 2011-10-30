@@ -27,7 +27,7 @@ void compute_density(sim_state_t* s, sim_param_t* params)
 {
     int i, j, len;
     int n = s->n;
-    particle_t* node_buffer[4] = {0, 0, 0, 0};
+    particle_t* node_buffer[n];
     particle_t* curr;
 
     float dx, dy, r2, z, rho_ij;
@@ -44,9 +44,10 @@ void compute_density(sim_state_t* s, sim_param_t* params)
     check_bins(s);
 
     for (i = 0; i < n; ++i) {
-        get_neighboring_bins(s, &(s->particles[i]), node_buffer);
+        int mbins;
+        get_neighboring_bins(s, &(s->particles[i]), node_buffer, &mbins);
 
-        for (j = 0; j < 4; ++j) {
+        for (j = 0; j < mbins; ++j) {
             curr = node_buffer[j];
             while (curr) {
                 dx = s->particles[i].x[0] - curr->x[0];
@@ -103,7 +104,7 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     const float g    = params->g;
     const float mass = state->mass;
     const float h2   = h*h;
-    int i, j;
+    int i, j, mbins;
 
     // Unpack system state
     int n = state->n;
@@ -135,9 +136,12 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     /*     const float rhoi = state->particles[i].rho; */
     /*     x = state->particles[i].x[0]; */
     /*     y = state->particles[i].x[1]; */
-    /*     get_neighboring_bins(state, &(state->particles[i]), node_buffer); */
 
-    /*     for (j = 0; j < 4; ++j) { */
+    /*     get_neighboring_bins(state, &(state->particles[i]), node_buffer, &mbins); */
+
+
+    /*     for (j = 0; j < mbins; ++j) { */
+    /*         printf("%d bins received.\n", mbins); */
     /*         curr = node_buffer[j]; */
     /*         while (curr) { */
     /*             if (curr != &(state->particles[i])) { */
@@ -148,9 +152,6 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     /*                 if (r2 < h2) { */
     /*                     const float rhoj = state->particles[j].rho; */
     /*                     float q = sqrt(r2)/h; */
-    /*                     assert(rhoj); */
-    /*                     assert(rhoi); */
-    /*                     assert(q); */
     /*                     float u = 1 - q; */
     /*                     float w0 = C0 * u/rhoi/rhoj; */
     /*                     float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q; */

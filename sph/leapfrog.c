@@ -87,7 +87,7 @@ void leapfrog_start(sim_state_t* s, double dt)
     int n = s->n;
 
     for (i = 0; i < n; ++i) s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
-    for (i = 0; i < n; ++i) s->particles[i].vh[0] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
+    for (i = 0; i < n; ++i) s->particles[i].vh[1] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
 
     for (i = 0; i < n; ++i) s->particles[i].v[0] += s->particles[i].a[0] * dt;
     for (i = 0; i < n; ++i) s->particles[i].v[1] += s->particles[i].a[1] * dt;
@@ -148,10 +148,11 @@ static void damp_reflect(int which, float barrier, sim_state_t* s, int i)
 static void reflect_bc(sim_state_t* s)
 {
     // Boundaries of the computational domain
-    const float XMIN = 0.0001;     /* I seem to be getting weird errors where  */
-    const float XMAX = 0.9999;     /* the result from damp_reflect is still    */
-    const float YMIN = 0.0001;     /* outside the domain, but only by a factor */
-    const float YMAX = 0.9999;     /* of 1e-8 for some reason. */
+    const float eps  = 1e-4;
+    const float XMIN = eps;
+    const float XMAX = 1.0 - eps;
+    const float YMIN = eps;
+    const float YMAX = 1.0 - eps;
 
     int n = s->n;
 

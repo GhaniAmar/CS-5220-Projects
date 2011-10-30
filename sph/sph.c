@@ -114,7 +114,7 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
 
 sim_state_t* init_particles(sim_param_t* param)
 {
-    sim_state_t* s = place_particles(param, box_indicator);
+    sim_state_t* s = place_particles(param, circ_indicator);
     normalize_mass(s, param);
     return s;
 }
