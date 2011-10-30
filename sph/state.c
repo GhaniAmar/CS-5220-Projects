@@ -10,7 +10,7 @@ sim_state_t* alloc_state(int n)
 
     sim_state_t* s = (sim_state_t*) calloc(1, sizeof(sim_state_t));
     s->n           = n;
-    s->nbins       = (int) floor(sqrt(n));
+    s->nbins       = (int) floor(sqrt(n)); /* Need to make l \geq 2h or something like that */
     s->particles   = (particle_t*) calloc(s->n, sizeof(particle_t));
     s->bins        = (particle_t**) calloc(s->nbins, sizeof(particle_t*));
 

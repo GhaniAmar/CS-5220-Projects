@@ -69,15 +69,6 @@ void leapfrog_step(sim_state_t* s, double dt)
         s->particles[i].x[1] += s->particles[i].vh[1] * dt;
     }
 
-    /* for (i = 0; i < n; ++i) { */
-    /*     s->particles[i].vh[0] += s->particles[i].a[0] * dt; */
-    /*     s->particles[i].vh[1] += s->particles[i].a[1] * dt; */
-    /*     s->particles[i].v[0]   = s->particles[i].vh[0] + s->particles[i].a[0] * dt / 2; */
-    /*     s->particles[i].v[0]   = s->particles[i].vh[1] + s->particles[i].a[1] * dt / 2; */
-    /*     s->particles[i].x[0]  += s->particles[i].vh[0] * dt; */
-    /*     s->particles[i].x[1]  += s->particles[i].vh[1] * dt; */
-    /* } */
-
     reflect_bc(s);
 }
 
@@ -97,8 +88,10 @@ void leapfrog_start(sim_state_t* s, double dt)
 
     for (i = 0; i < n; ++i) s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
     for (i = 0; i < n; ++i) s->particles[i].vh[0] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
+
     for (i = 0; i < n; ++i) s->particles[i].v[0] += s->particles[i].a[0] * dt;
     for (i = 0; i < n; ++i) s->particles[i].v[1] += s->particles[i].a[1] * dt;
+
     for (i = 0; i < n; ++i) s->particles[i].x[0] += s->particles[i].vh[0] * dt;
     for (i = 0; i < n; ++i) s->particles[i].x[1] += s->particles[i].vh[1] * dt;
 
@@ -118,30 +111,32 @@ void leapfrog_start(sim_state_t* s, double dt)
  * whatever solution components should be reflected.
  *@c*/
 
-static void damp_reflect(int which, float barrier, particle_t *offender)
+static void damp_reflect(int which, float barrier, sim_state_t* s, int i)
 {
-    // Coefficient of resitiution
+    particle_t* restrict p = &(s->particles[i]);
+
+    // Coefficient of restitiution
     const float DAMP = 0.75;
 
     // Ignore degenerate cases
-    if (offender->v[which] == 0) {
-        printf("Degenerate!\n");
+    if (p->v[which] == 0)
         return;
-    }
 
     // Scale back the distance traveled based on time from collision
-    float tbounce = ((offender->x[which])-barrier)/(offender->v[which]);
-    offender->x[0] -= (offender->v[0])*(1-DAMP)*tbounce;
-    offender->x[1] -= (offender->v[1])*(1-DAMP)*tbounce;
+    float tbounce = (p->x[which] - barrier)/(p->v[which]);
+    p->x[0] -= (p->v[0])*(1-DAMP)*tbounce;
+    p->x[1] -= (p->v[1])*(1-DAMP)*tbounce;
 
     // Reflect the position and velocity
-    offender->x[which]  = 2*barrier-(offender->x[which]);
-    offender->v[which]  = -(offender->v[which]);
-    offender->vh[which] = -(offender->vh[which]);
+    p->x[which]  = 2*barrier - (p->x[which]);
+    p->v[which]  = -(p->v[which]);
+    p->vh[which] = -(p->vh[which]);
 
     // Damp the velocities
-    offender->v[0] *= DAMP;  offender->vh[0] *= DAMP;
-    offender->v[1] *= DAMP;  offender->vh[1] *= DAMP;
+    p->v[0]  *= DAMP;
+    p->v[1]  *= DAMP;
+    p->vh[0] *= DAMP;
+    p->vh[1] *= DAMP;
 }
 
 
@@ -153,17 +148,17 @@ static void damp_reflect(int which, float barrier, particle_t *offender)
 static void reflect_bc(sim_state_t* s)
 {
     // Boundaries of the computational domain
-    const float XMIN = 0.0;
-    const float XMAX = 1.0;
-    const float YMIN = 0.0;
-    const float YMAX = 1.0;
+    const float XMIN = 0.0001;     /* I seem to be getting weird errors where  */
+    const float XMAX = 0.9999;     /* the result from damp_reflect is still    */
+    const float YMIN = 0.0001;     /* outside the domain, but only by a factor */
+    const float YMAX = 0.9999;     /* of 1e-8 for some reason. */
 
     int n = s->n;
 
     for (int i = 0; i < n; ++i) {
-        if (s->particles[i].x[0] < XMIN) damp_reflect(0, XMIN, &(s->particles[i]));
-        if (s->particles[i].x[0] > XMAX) damp_reflect(0, XMAX, &(s->particles[i]));
-        if (s->particles[i].x[1] < YMIN) damp_reflect(1, YMIN, &(s->particles[i]));
-        if (s->particles[i].x[1] > YMAX) damp_reflect(1, YMAX, &(s->particles[i]));
+        if (s->particles[i].x[0] < XMIN) damp_reflect(0, XMIN, s, i);
+        if (s->particles[i].x[0] > XMAX) damp_reflect(0, XMAX, s, i);
+        if (s->particles[i].x[1] < YMIN) damp_reflect(1, YMIN, s, i);
+        if (s->particles[i].x[1] > YMAX) damp_reflect(1, YMAX, s, i);
     }
 }
