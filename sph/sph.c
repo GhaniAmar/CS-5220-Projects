@@ -50,7 +50,7 @@ int circ_indicator(float x, float y)
  * with cell sizes of $h/1.3$.  This is close enough to allow the
  * particles to overlap somewhat, but not too much.
  *@c*/
-sim_state_t* place_particles(sim_param_t* param, 
+sim_state_t* place_particles(sim_param_t* param,
                              domain_fun_t indicatef)
 {
     float h  = param->h;
@@ -72,11 +72,17 @@ sim_state_t* place_particles(sim_param_t* param,
                 s->x[2*p+1] = y;
                 s->v[2*p+0] = 0;
                 s->v[2*p+1] = 0;
+
+                s->particles[p].x[0] = x;
+                s->particles[p].x[1] = y;
+                s->particles[p].v[0] = 0;
+                s->particles[p].v[1] = 0;
+
                 ++p;
             }
         }
     }
-    return s;    
+    return s;
 }
 
 /*@T
@@ -103,6 +109,17 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
         rho2s += (s->rho[i])*(s->rho[i]);
         rhos  += s->rho[i];
     }
+
+    float rho2s_ = 0;
+    float rhos_  = 0;
+    for (int i = 0; i < s->n; ++i) {
+        rho2s_ += (s->particles[i].rho) * (s->particles[i].rho);
+        rhos_  += s->particles[i].rho;
+    }
+
+    assert(rho2s = rho2s_);
+    assert(rhos = rhos_);
+
     s->mass *= ( rho0*rhos / rho2s );
 }
 
@@ -128,8 +145,8 @@ void check_state(sim_state_t* s)
     for (int i = 0; i < s->n; ++i) {
         float xi = s->x[2*i+0];
         float yi = s->x[2*i+1];
-        assert( xi >= 0 || xi <= 1 );
-        assert( yi >= 0 || yi <= 1 );
+        assert( xi >= 0 && xi <= 1 );
+        assert( yi >= 0 && yi <= 1 );
     }
 }
 
