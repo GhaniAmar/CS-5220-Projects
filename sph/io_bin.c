@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <arpa/inet.h>
 #include "io.h"
+#include "state.h"
 
 /*@T
  * \section{Binary output}
@@ -10,7 +11,7 @@
  * Originally, I had only text output; but I got impatient waiting
  * to view some of my longer runs, and I wanted something a bit more
  * compact, so added a binary option
- * 
+ *
  * The viewer distinguishes the file type by looking at the first few
  * characters in the file: the tag [[NBView00]] means that what
  * follows is text data, while the tag [[NBView01]] means that what
@@ -58,7 +59,7 @@ void write_header(FILE* fp, int n)
 
 
 /*@T
- * 
+ *
  * After the header is a sequence of frames, each of which contains
  * $n_{\mathrm{particles}}$ pairs of 32-bit int floating point numbers
  * and an optional flag which is used to determine the color.
@@ -67,11 +68,14 @@ void write_header(FILE* fp, int n)
  * note that writing a single frame of output may involve multiple
  * calls to [[write_frame_data]].
  *@c*/
-void write_frame_data(FILE* fp, int n, float* x, int* c)
-{
-    for (int i = 0; i < n; ++i) {
-        uint32_t xi = htonf(x++);
-        uint32_t yi = htonf(x++);
+void write_frame_data(FILE* fp, sim_state_t *state, int *c) {
+    int i;
+    particle_node *bins = state -> bins;
+    int n = state -> n;
+
+    for (i = 0; i < n; ++i) {
+        uint32_t xi = htonf((void*) &(bins[i].x[0]));
+        uint32_t yi = htonf((void*) &(bins[i].x[1]));
         fwrite(&xi, sizeof(xi), 1, fp);
         fwrite(&yi, sizeof(yi), 1, fp);
         uint32_t ci0 = c ? *c++ : 0;
