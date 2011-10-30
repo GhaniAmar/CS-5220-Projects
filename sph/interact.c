@@ -12,7 +12,7 @@
 
 /*@T
  * \subsection{Density computations}
- * 
+ *
  * The formula for density is
  * \[
  *   \rho_i = \frac{4m}{\pi h^8} \sum_{j \in N_i} (h^2 - r^2)^3.
@@ -26,26 +26,26 @@
 void compute_density(sim_state_t* s, sim_param_t* params)
 {
     int n = s->n;
-    float* restrict rho = s->rho;
-    const float* restrict x = s->x;
 
     float h  = params->h;
     float h2 = h*h;
     float h8 = ( h2*h2 )*( h2*h2 );
     float C  = 4 * s->mass / M_PI / h8;
 
-    memset(rho, 0, n*sizeof(float));
+    for (int i = 0; i < n; ++i)
+        s->particles[i].rho = 0;
+
     for (int i = 0; i < n; ++i) {
-        rho[i] += 4 * s->mass / M_PI / h2;
+        s->particles[i].rho += 4 * s->mass / M_PI / h2;
         for (int j = i+1; j < n; ++j) {
-            float dx = x[2*i+0]-x[2*j+0];
-            float dy = x[2*i+1]-x[2*j+1];
+            float dx = s->particles[i].x[0] - s->particles[j].x[0];
+            float dy = s->particles[i].x[1] - s->particles[j].x[1];
             float r2 = dx*dx + dy*dy;
             float z  = h2-r2;
             if (z > 0) {
                 float rho_ij = C*z*z*z;
-                rho[i] += rho_ij;
-                rho[j] += rho_ij;
+                s->particles[i].rho += rho_ij;
+                s->particles[j].rho += rho_ij;
             }
         }
     }
@@ -54,10 +54,10 @@ void compute_density(sim_state_t* s, sim_param_t* params)
 
 /*@T
  * \subsection{Computing forces}
- * 
+ *
  * The acceleration is computed by the rule
  * \[
- *   \bfa_i = \frac{1}{\rho_i} \sum_{j \in N_i} 
+ *   \bfa_i = \frac{1}{\rho_i} \sum_{j \in N_i}
  *     \bff_{ij}^{\mathrm{interact}} + \bfg,
  * \]
  * where the pair interaction formula is as previously described.
@@ -79,10 +79,6 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     const float h2   = h*h;
 
     // Unpack system state
-    const float* restrict rho = state->rho;
-    const float* restrict x   = state->x;
-    const float* restrict v   = state->v;
-    float* restrict a         = state->a;
     int n = state->n;
 
     // Compute density and color
@@ -90,8 +86,8 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
 
     // Start with gravity and surface forces
     for (int i = 0; i < n; ++i) {
-        a[2*i+0] = 0;
-        a[2*i+1] = -g;
+        state->particles[i].a[0] = 0;
+        state->particles[i].a[1] = -g;
     }
 
     // Constants for interaction term
@@ -101,24 +97,25 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
 
     // Now compute interaction forces
     for (int i = 0; i < n; ++i) {
-        const float rhoi = rho[i];
+        const float rhoi = state->particles[i].rho;
         for (int j = i+1; j < n; ++j) {
-            float dx = x[2*i+0]-x[2*j+0];
-            float dy = x[2*i+1]-x[2*j+1];
+            float dx = state->particles[i].x[0] - state->particles[j].x[0];
+            float dy = state->particles[i].x[1] - state->particles[j].x[1];
+
             float r2 = dx*dx + dy*dy;
             if (r2 < h2) {
-                const float rhoj = rho[j];
+                const float rhoj = state->particles[j].rho;
                 float q = sqrt(r2)/h;
                 float u = 1-q;
                 float w0 = C0 * u/rhoi/rhoj;
                 float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
                 float wv = w0 * Cv;
-                float dvx = v[2*i+0]-v[2*j+0];
-                float dvy = v[2*i+1]-v[2*j+1];
-                a[2*i+0] += (wp*dx + wv*dvx);
-                a[2*i+1] += (wp*dy + wv*dvy);
-                a[2*j+0] -= (wp*dx + wv*dvx);
-                a[2*j+1] -= (wp*dy + wv*dvy);
+                float dvx = (state->particles[i].v[0]) - (state->particles[j].v[0]);
+                float dvy = (state->particles[i].v[1]) - (state->particles[j].v[1]);
+                state->particles[i].a[0] = (wp*dx + wv*dvx);
+                state->particles[i].a[1] = (wp*dy + wv*dvy);
+                state->particles[j].a[0] = (wp*dx + wv*dvx);
+                state->particles[j].a[1] = (wp*dy + wv*dvy);
             }
         }
     }

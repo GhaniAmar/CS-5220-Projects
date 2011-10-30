@@ -3,6 +3,7 @@
 #include <string.h>
 #include <math.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "io.h"
 #include "params.h"
@@ -68,11 +69,6 @@ sim_state_t* place_particles(sim_param_t* param,
     for (float x = 0; x < 1; x += hh) {
         for (float y = 0; y < 1; y += hh) {
             if (indicatef(x,y)) {
-                s->x[2*p+0] = x;
-                s->x[2*p+1] = y;
-                s->v[2*p+0] = 0;
-                s->v[2*p+1] = 0;
-
                 s->particles[p].x[0] = x;
                 s->particles[p].x[1] = y;
                 s->particles[p].v[0] = 0;
@@ -106,26 +102,16 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
     float rho2s = 0;
     float rhos  = 0;
     for (int i = 0; i < s->n; ++i) {
-        rho2s += (s->rho[i])*(s->rho[i]);
-        rhos  += s->rho[i];
+        rho2s += (s->particles[i].rho) * (s->particles[i].rho);
+        rhos  += s->particles[i].rho;
     }
 
-    float rho2s_ = 0;
-    float rhos_  = 0;
-    for (int i = 0; i < s->n; ++i) {
-        rho2s_ += (s->particles[i].rho) * (s->particles[i].rho);
-        rhos_  += s->particles[i].rho;
-    }
-
-    assert(rho2s = rho2s_);
-    assert(rhos = rhos_);
-
-    s->mass *= ( rho0*rhos / rho2s );
+    s->mass *= (rho0*rhos / rho2s);
 }
 
 sim_state_t* init_particles(sim_param_t* param)
 {
-    sim_state_t* s = place_particles(param, box_indicator);
+    sim_state_t* s = place_particles(param, circ_indicator);
     normalize_mass(s, param);
     return s;
 }
@@ -143,10 +129,10 @@ sim_state_t* init_particles(sim_param_t* param)
 void check_state(sim_state_t* s)
 {
     for (int i = 0; i < s->n; ++i) {
-        float xi = s->x[2*i+0];
-        float yi = s->x[2*i+1];
-        assert( xi >= 0 && xi <= 1 );
-        assert( yi >= 0 && yi <= 1 );
+        float xi = s->particles[i].x[0];
+        float yi = s->particles[i].x[1];
+        assert(xi >= 0 && xi <= 1);
+        assert(yi >= 0 && yi <= 1);
     }
 }
 
@@ -164,17 +150,18 @@ int main(int argc, char** argv)
 
     tic(0);
     write_header(fp, n);
-    write_frame_data(fp, n, state->x, NULL);
+    write_frame_data(fp, n, state->particles, NULL);
     compute_accel(state, &params);
+    check_state(state); printf("Compute_accel passed.\n");
     leapfrog_start(state, dt);
-    check_state(state);
+    check_state(state); printf("Leapfrog_start passed.\n");
     for (int frame = 1; frame < nframes; ++frame) {
+        printf("Rendering frame %d of %d.\n", frame, nframes);
         for (int i = 0; i < npframe; ++i) {
-            compute_accel(state, &params);
-            leapfrog_step(state, dt);
-            check_state(state);
+            compute_accel(state, &params); /* check_state(state); printf("Compute_accel passed.\n"); */
+            leapfrog_step(state, dt); /* check_state(state); printf("Leapfrog_step passed.\n"); */
         }
-        write_frame_data(fp, n, state->x, NULL);
+        write_frame_data(fp, n, state->particles, NULL);
     }
     printf("Ran in %g seconds\n", toc(0));
 

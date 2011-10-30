@@ -27,11 +27,6 @@ typedef struct particle_t {
 typedef struct sim_state_t {
     int n;                 /* Number of particles        */
     float mass;            /* Particle mass              */
-    float* restrict rho;   /* Densities                  */
-    float* restrict x;     /* Positions                  */
-    float* restrict vh;    /* Velocities (half step)     */
-    float* restrict v;     /* Velocities (full step)     */
-    float* restrict a;     /* Acceleration               */
 
     int nbins;
     particle_t* particles; /* Array of particles         */

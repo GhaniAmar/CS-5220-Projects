@@ -6,7 +6,7 @@ static void reflect_bc(sim_state_t* s);
 
 /*@T
  * \section{Leapfrog integration}
- * 
+ *
  * The leapfrog time integration scheme is frequently used in
  * particle simulation algorithms because
  * \begin{itemize}
@@ -22,7 +22,7 @@ static void reflect_bc(sim_state_t* s);
  * Of course, our system is {\em not} Hamiltonian -- viscosity
  * is a form of damping, so the system loses energy.  But we'll
  * stick with the leapfrog integration scheme anyhow.
- * 
+ *
  * The leapfrog time integration algorithm is named because
  * the velocities are updated on half steps and the positions
  * on integer steps; hence, the two leap over each other.
@@ -51,15 +51,19 @@ static void reflect_bc(sim_state_t* s);
 
 void leapfrog_step(sim_state_t* s, double dt)
 {
-    const float* restrict a = s->a;
-    float* restrict vh = s->vh;
-    float* restrict v  = s->v;
-    float* restrict x  = s->x;
+    int i;
     int n = s->n;
-    for (int i = 0; i < 2*n; ++i) vh[i] += a[i]  * dt;
-    for (int i = 0; i < 2*n; ++i) v[i]   = vh[i] + a[i] * dt / 2;
-    for (int i = 0; i < 2*n; ++i) x[i]  += vh[i] * dt;
-    reflect_bc(s);
+
+    for (i = 0; i < n; ++i) {
+        s->particles[i].vh[0] += s->particles[i].a[0] * dt;
+        s->particles[i].vh[1] += s->particles[i].a[1] * dt;
+        s->particles[i].v[0]   = s->particles[i].vh[0] + s->particles[i].a[0] * dt / 2;
+        s->particles[i].v[0]   = s->particles[i].vh[1] + s->particles[i].a[1] * dt / 2;
+        s->particles[i].x[0]  += s->particles[i].vh[0] * dt;
+        s->particles[i].x[1]  += s->particles[i].vh[1] * dt;
+    }
+
+    /* reflect_bc(s); */
 }
 
 /*@T
@@ -73,14 +77,16 @@ void leapfrog_step(sim_state_t* s, double dt)
 
 void leapfrog_start(sim_state_t* s, double dt)
 {
-    const float* restrict a = s->a;
-    float* restrict vh = s->vh;
-    float* restrict v  = s->v;
-    float* restrict x  = s->x;
+    int i;
     int n = s->n;
-    for (int i = 0; i < 2*n; ++i) vh[i]  = v[i] + a[i] * dt / 2;
-    for (int i = 0; i < 2*n; ++i) v[i]  += a[i]  * dt;
-    for (int i = 0; i < 2*n; ++i) x[i]  += vh[i] * dt;
+
+    for (i = 0; i < n; ++i) s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
+    for (i = 0; i < n; ++i) s->particles[i].vh[0] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
+    for (i = 0; i < n; ++i) s->particles[i].v[0] += s->particles[i].a[0] * dt;
+    for (i = 0; i < n; ++i) s->particles[i].v[1] += s->particles[i].a[1] * dt;
+    for (i = 0; i < n; ++i) s->particles[i].x[0] += s->particles[i].vh[0] * dt;
+    for (i = 0; i < n; ++i) s->particles[i].x[1] += s->particles[i].vh[1] * dt;
+
     reflect_bc(s);
 }
 
@@ -97,30 +103,30 @@ void leapfrog_start(sim_state_t* s, double dt)
  * whatever solution components should be reflected.
  *@c*/
 
-static void damp_reflect(int which, float barrier, 
-                         float* x, float* v, float* vh)
+static void damp_reflect(int which, float barrier, particle_t *offender)
 {
     // Coefficient of resitiution
     const float DAMP = 0.75;
 
     // Ignore degenerate cases
-    if (v[which] == 0)
+    if (offender->v[which] == 0)
         return;
 
     // Scale back the distance traveled based on time from collision
-    float tbounce = (x[which]-barrier)/v[which];
-    x[0] -= v[0]*(1-DAMP)*tbounce;
-    x[1] -= v[1]*(1-DAMP)*tbounce;
+    float tbounce = ((offender->x[which])-barrier)/(offender->v[which]);
+    offender->x[0] -= (offender->v[0])*(1-DAMP)*tbounce;
+    offender->x[1] -= (offender->v[1])*(1-DAMP)*tbounce;
 
     // Reflect the position and velocity
-    x[which]  = 2*barrier-x[which];
-    v[which]  = -v[which];
-    vh[which] = -vh[which];
+    offender->x[which]  = 2*barrier-(offender->x[which]);
+    offender->v[which]  = -(offender->v[which]);
+    offender->vh[which] = -(offender->vh[which]);
 
     // Damp the velocities
-    v[0] *= DAMP;  vh[0] *= DAMP;
-    v[1] *= DAMP;  vh[1] *= DAMP;
+    offender->v[0] *= DAMP;  offender->vh[0] *= DAMP;
+    offender->v[1] *= DAMP;  offender->vh[1] *= DAMP;
 }
+
 
 /*@T
  *
@@ -135,14 +141,12 @@ static void reflect_bc(sim_state_t* s)
     const float YMIN = 0.0;
     const float YMAX = 1.0;
 
-    float* restrict vh = s->vh;
-    float* restrict v  = s->v;
-    float* restrict x  = s->x;
     int n = s->n;
-    for (int i = 0; i < n; ++i, x += 2, v += 2, vh += 2) {
-        if (x[0] < XMIN) damp_reflect(0, XMIN, x, v, vh);
-        if (x[0] > XMAX) damp_reflect(0, XMAX, x, v, vh);
-        if (x[1] < YMIN) damp_reflect(1, YMIN, x, v, vh);
-        if (x[1] > YMAX) damp_reflect(1, YMAX, x, v, vh);
+
+    for (int i = 0; i < n; ++i) {
+        if (s->particles[i].x[0] < XMIN) damp_reflect(0, XMIN, &(s->particles[i]));
+        if (s->particles[i].x[0] > XMAX) damp_reflect(0, XMAX, &(s->particles[i]));
+        if (s->particles[i].x[1] < YMIN) damp_reflect(1, YMIN, &(s->particles[i]));
+        if (s->particles[i].x[1] > YMAX) damp_reflect(1, YMAX, &(s->particles[i]));
     }
 }
