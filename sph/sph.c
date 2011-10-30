@@ -138,6 +138,21 @@ void check_state(sim_state_t* s)
     }
 }
 
+/* Same as check_state, but helps with line numbers */
+int verify_state(sim_state_t* s)
+{
+    float xi, yi;
+
+    for (int i = 0; i < s->n; ++i) {
+        xi = s->bins[i].x[0];
+        yi = s->bins[i].x[1];
+        if (!(xi >= 0 && xi <= 1 && yi >= 0 && yi <= 1))
+            return 0;
+    }
+
+    return 1;
+}
+
 int main(int argc, char** argv)
 {
     sim_param_t params;
@@ -156,13 +171,17 @@ int main(int argc, char** argv)
     write_header(fp, n);
     write_frame_data(fp, state, NULL);
     compute_accel(state, &params);
+    assert(verify_state(state));
     leapfrog_start(state, dt);
-    check_state(state);
+    assert(verify_state(state));
+
     for (int frame = 1; frame < nframes; ++frame) {
+        printf("%d\n", frame);
         for (int i = 0; i < npframe; ++i) {
             compute_accel(state, &params);
+            assert(verify_state(state));
             leapfrog_step(state, dt);
-            check_state(state);
+            assert(verify_state(state));
         }
         write_frame_data(fp, state, NULL);
     }

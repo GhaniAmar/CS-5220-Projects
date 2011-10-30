@@ -109,7 +109,6 @@ void leapfrog_start(sim_state_t* state, double dt) {
 
 static void damp_reflect(int dim, float barrier, particle_node *bin) {
     const float DAMP = 0.75;
-    int i;
 
     /* Ignore degenerate cases */
     if (bin->v[dim] == 0)
