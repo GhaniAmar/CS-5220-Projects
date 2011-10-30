@@ -12,7 +12,7 @@
 
 /*@T
  * \subsection{Density computations}
- * 
+ *
  * The formula for density is
  * \[
  *   \rho_i = \frac{4m}{\pi h^8} \sum_{j \in N_i} (h^2 - r^2)^3.
@@ -23,41 +23,44 @@
  * way that $j$ contributes to $i$).
  *@c*/
 
-void compute_density(sim_state_t* s, sim_param_t* params)
-{
-    int n = s->n;
-    float* restrict rho = s->rho;
-    const float* restrict x = s->x;
+void compute_density(sim_state_t *state, sim_param_t *params) {
+    int i, j;
+    int n = state -> n;
 
-    float h  = params->h;
-    float h2 = h*h;
-    float h8 = ( h2*h2 )*( h2*h2 );
-    float C  = 4 * s->mass / M_PI / h8;
+    float dx, dy, r2, z, rho_ij;
+    float h  = params -> h;
+    float h2 = h * h;
+    float h8 = (h2 * h2) * (h2 * h2);
+    float C  = 4 * state->mass / M_PI / h8;
 
-    memset(rho, 0, n*sizeof(float));
-    for (int i = 0; i < n; ++i) {
-        rho[i] += 4 * s->mass / M_PI / h2;
-        for (int j = i+1; j < n; ++j) {
-            float dx = x[2*i+0]-x[2*j+0];
-            float dy = x[2*i+1]-x[2*j+1];
-            float r2 = dx*dx + dy*dy;
-            float z  = h2-r2;
+    for (i = 0; i < n; ++i)
+        state->bins[i].rho = 0;
+
+    for (i = 0; i < n; ++i) {
+        particle_node* bin = &(state->bins[i]); /* Add restrict here later for insanity */
+        bin->rho += 4 * state->mass / M_PI / h2;
+
+        for (j = i + 1; j < n; ++j) {
+            particle_node* bin2 = &(state -> bins[j]);
+            dx = bin->x[0] - bin2->x[0];
+            dy = bin->x[1] - bin2->x[1];
+            r2 = dx * dx + dy * dy;
+            z = h2 - r2;
             if (z > 0) {
-                float rho_ij = C*z*z*z;
-                rho[i] += rho_ij;
-                rho[j] += rho_ij;
+                rho_ij = C * z * z * z;
+                bin->rho  += rho_ij;
+                bin2->rho += rho_ij;
             }
         }
     }
 }
 
-
 /*@T
  * \subsection{Computing forces}
- * 
+ *
  * The acceleration is computed by the rule
  * \[
- *   \bfa_i = \frac{1}{\rho_i} \sum_{j \in N_i} 
+ *   \bfa_i = \frac{1}{\rho_i} \sum_{j \in N_i}
  *     \bff_{ij}^{\mathrm{interact}} + \bfg,
  * \]
  * where the pair interaction formula is as previously described.
@@ -67,9 +70,11 @@ void compute_density(sim_state_t* s, sim_param_t* params)
  * but it does a very expensive brute force search for neighbors.
  *@c*/
 
-void compute_accel(sim_state_t* state, sim_param_t* params)
-{
-    // Unpack basic parameters
+void compute_accel(sim_state_t* state, sim_param_t* params) {
+    int i, j;
+    float dx, dy, r2, q, u, w0, wp, wv, dvx, dvy;
+
+    /* Unpack basic parameters */
     const float h    = params->h;
     const float rho0 = params->rho0;
     const float k    = params->k;
@@ -78,47 +83,48 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     const float mass = state->mass;
     const float h2   = h*h;
 
-    // Unpack system state
-    const float* restrict rho = state->rho;
-    const float* restrict x   = state->x;
-    const float* restrict v   = state->v;
-    float* restrict a         = state->a;
-    int n = state->n;
+    /* Unpack system state */
+    particle_node* restrict bins = state -> bins;
+    int n = state -> n;
 
-    // Compute density and color
+    /* Compute desnity and color */
     compute_density(state, params);
 
-    // Start with gravity and surface forces
-    for (int i = 0; i < n; ++i) {
-        a[2*i+0] = 0;
-        a[2*i+1] = -g;
+    /* Start with gravity and surface forces */
+    for (i = 0; i < n; ++i) {
+        bins[i].a[0] = 0;
+        bins[i].a[1] = -g;
     }
 
-    // Constants for interaction term
+    /* Constants for interaction term */
     float C0 = mass / M_PI / ( (h2)*(h2) );
     float Cp =  15*k;
     float Cv = -40*mu;
 
-    // Now compute interaction forces
-    for (int i = 0; i < n; ++i) {
-        const float rhoi = rho[i];
-        for (int j = i+1; j < n; ++j) {
-            float dx = x[2*i+0]-x[2*j+0];
-            float dy = x[2*i+1]-x[2*j+1];
-            float r2 = dx*dx + dy*dy;
+    for (i = 0; i < n; ++i) {
+        particle_node* restrict bin = &bins[i];
+        const float rhoi = bin->rho;
+
+        for (j = i + 1; j < n; ++j) {
+            particle_node* restrict bin2 = &bins[j];
+            const float rhoj = bin2->rho;
+
+            dx = bin->x[0] - bin2->x[0];
+            dy = bin->x[1] - bin2->x[1];
+            r2 = dx * dx + dy * dy;
+
             if (r2 < h2) {
-                const float rhoj = rho[j];
-                float q = sqrt(r2)/h;
-                float u = 1-q;
-                float w0 = C0 * u/rhoi/rhoj;
-                float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
-                float wv = w0 * Cv;
-                float dvx = v[2*i+0]-v[2*j+0];
-                float dvy = v[2*i+1]-v[2*j+1];
-                a[2*i+0] += (wp*dx + wv*dvx);
-                a[2*i+1] += (wp*dy + wv*dvy);
-                a[2*j+0] -= (wp*dx + wv*dvx);
-                a[2*j+1] -= (wp*dy + wv*dvy);
+                q = sqrt(r2)/h;
+                u = 1 - q;
+                w0 = C0 * u / rhoi / rhoj;
+                wp = w0 * Cp * (rhoi + rhoj - 2 * rho0) * u / q;
+                wv = w0 * Cv;
+                dvx = bin->v[0] - bin2->v[0];
+                dvy = bin->v[1] - bin2->v[1];
+                bin->a[0]  += (wp * dx + wv * dvx);
+                bin->a[1]  += (wp * dy + wv * dvy);
+                bin2->a[0] -= (wp * dx + wv * dvx);
+                bin2->a[1] -= (wp * dy + wv * dvy);
             }
         }
     }
