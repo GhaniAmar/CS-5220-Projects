@@ -1,6 +1,8 @@
 #ifndef STATE_H
 #define STATE_H
 
+#include "params.h"
+
 /*@T
  * \section{System state}
  *
@@ -25,17 +27,23 @@ typedef struct particle_t {
 } particle_t;
 
 typedef struct sim_state_t {
-    int n;                 /* Number of particles        */
-    float mass;            /* Particle mass              */
-
-    int nbins;
-    particle_t* particles; /* Array of particles         */
-    particle_t** bins;     /* Array of bin head pointers */
+    int n;                 /* Number of particles                         */
+    float mass;            /* Particle mass                               */
+    float h;               /* Helpful to keep around                      */
+    int nbins;             /* Bin number, chosen to be a perfect square   */
+    int nbinwidth;         /* sqrt(nbins)                                 */
+    particle_t* particles; /* Array of particles (in no particular order) */
+    particle_t** bins;     /* Column major array of bin head pointers     */
 
 } sim_state_t;
 
-sim_state_t* alloc_state(int n);
+sim_state_t* alloc_state(int n, sim_param_t* params);
 void free_state(sim_state_t* s);
+
+void clear_bins(sim_state_t* state);
+void add_to_bin(sim_state_t* state, particle_t* particle);
+void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer);
+void check_bins(sim_state_t* state);
 
 /*@q*/
 #endif /* STATE_H */

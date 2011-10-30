@@ -64,7 +64,7 @@ sim_state_t* place_particles(sim_param_t* param,
             count += indicatef(x,y);
 
     // Populate the particle data structure
-    sim_state_t* s = alloc_state(count);
+    sim_state_t* s = alloc_state(count, param);
     int p = 0;
     for (float x = 0; x < 1; x += hh) {
         for (float y = 0; y < 1; y += hh) {
