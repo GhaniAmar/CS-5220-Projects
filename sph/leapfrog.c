@@ -49,19 +49,20 @@ static void reflect_bc(sim_state_t* s);
  * \end{enumerate}
  *@c*/
 
-void leapfrog_step(sim_state_t* state, double dt) {
-    int i, j;
+void leapfrog_step(sim_state_t* state, double dt) { /* Seems to be okay */
+    int i;
     int n = state -> n;
-    particle_node *bin;
 
     for (i = 0; i < n; ++i) {
-        bin = &(state -> bins[i]);
+        particle_node* restrict bin = &(state -> bins[i]);
 
-        for (j = 0; j < 2; ++j) {
-            bin->vh[j] += bin->a[j] * dt;
-            bin->v[j]   = bin->vh[j] + bin->a[j] * dt / 2;
-            bin->x[j]  += bin->vh[j] * dt;
-        }
+        bin->vh[0] += bin->a[0] * dt;
+        bin->v[0]   = bin->vh[0] + bin->a[0] * dt / 2;
+        bin->x[0]  += bin->vh[0] * dt;
+
+        bin->vh[1] += bin->a[1] * dt;
+        bin->v[1]   = bin->vh[1] + bin->a[1] * dt / 2;
+        bin->x[1]  += bin->vh[1] * dt;
     }
 
     reflect_bc(state);
@@ -76,19 +77,21 @@ void leapfrog_step(sim_state_t* state, double dt) {
  * \end{align*}
  *@c*/
 
-void leapfrog_start(sim_state_t* state, double dt) {
-    int i, j;
+
+void leapfrog_start(sim_state_t* state, double dt) { /* Looks okay */
+    int i;
     int n = state -> n;
-    particle_node *bin;
 
     for (i = 0; i < n; ++i) {
-        bin = &(state -> bins[i]);
+        particle_node* restrict bin = &(state -> bins[i]);
 
-        for (j = 0; j < 2; ++j) {
-            bin->vh[j] = bin->v[j] + bin->a[j] * dt / 2;
-            bin->v[j] += bin->a[j] * dt;
-            bin->x[j] += bin->vh[j] * dt;
-        }
+        bin->vh[0] = bin->v[0] + bin->a[0] * dt / 2;
+        bin->v[0] += bin->a[0] * dt;
+        bin->x[0] += bin->vh[0] * dt;
+
+        bin->vh[1] = bin->v[1] + bin->a[1] * dt / 2;
+        bin->v[1] += bin->a[1] * dt;
+        bin->x[1] += bin->vh[1] * dt;
     }
 
     reflect_bc(state);
@@ -108,6 +111,7 @@ void leapfrog_start(sim_state_t* state, double dt) {
  *@c*/
 
 static void damp_reflect(int dim, float barrier, particle_node *bin) {
+    /* Coefficient of restitution */
     const float DAMP = 0.75;
 
     /* Ignore degenerate cases */
@@ -121,8 +125,8 @@ static void damp_reflect(int dim, float barrier, particle_node *bin) {
 
     /* Reflect the position and velocity */
     bin->x[dim]  = 2*barrier - bin->x[dim];
-    bin->v[dim]  = -bin->v[dim];
-    bin->vh[dim] = -bin->vh[dim];
+    bin->v[dim]  = -(bin->v[dim]);
+    bin->vh[dim] = -(bin->vh[dim]);
 
     /* Damp the velocities */
     bin->v[0] *= DAMP; bin->vh[0] *= DAMP;
@@ -139,11 +143,10 @@ static void reflect_bc(sim_state_t* state) {
     const float MAX[2] = {1.0, 1.0};
 
     int i;
-    particle_node *bin;
     int n = state -> n;
 
     for (i = 0; i < n; ++i) {
-        bin = &(state -> bins[i]);
+        particle_node* restrict bin = &(state -> bins[i]);
         if (bin->x[0] < MIN[0]) damp_reflect(0, MIN[0], bin);
         if (bin->x[0] > MAX[0]) damp_reflect(0, MAX[0], bin);
         if (bin->x[1] < MIN[1]) damp_reflect(1, MIN[1], bin);

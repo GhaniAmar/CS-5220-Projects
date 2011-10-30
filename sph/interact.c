@@ -23,7 +23,7 @@
  * way that $j$ contributes to $i$).
  *@c*/
 
-void compute_density(sim_state_t *state, sim_param_t *params) {
+void compute_density(sim_state_t *state, sim_param_t *params) { /* Looks okay */
     int i, j;
     int n = state -> n;
 
@@ -37,17 +37,17 @@ void compute_density(sim_state_t *state, sim_param_t *params) {
         state->bins[i].rho = 0;
 
     for (i = 0; i < n; ++i) {
-        particle_node* bin = &(state->bins[i]); /* Add restrict here later for insanity */
+        particle_node* restrict bin = &(state->bins[i]);
         bin->rho += 4 * state->mass / M_PI / h2;
 
         for (j = i + 1; j < n; ++j) {
-            particle_node* bin2 = &(state -> bins[j]);
-            dx = bin->x[0] - bin2->x[0];
-            dy = bin->x[1] - bin2->x[1];
+            particle_node* restrict bin2 = &(state -> bins[j]);
+            dx = (bin->x[0]) - (bin2->x[0]);
+            dy = (bin->x[1]) - (bin2->x[1]);
             r2 = dx * dx + dy * dy;
             z = h2 - r2;
             if (z > 0) {
-                rho_ij = C * z * z * z;
+                rho_ij = C*z*z*z;
                 bin->rho  += rho_ij;
                 bin2->rho += rho_ij;
             }
@@ -70,7 +70,7 @@ void compute_density(sim_state_t *state, sim_param_t *params) {
  * but it does a very expensive brute force search for neighbors.
  *@c*/
 
-void compute_accel(sim_state_t* state, sim_param_t* params) {
+void compute_accel(sim_state_t* state, sim_param_t* params) { /* Looks fine */
     int i, j;
     float dx, dy, r2, q, u, w0, wp, wv, dvx, dvy;
 
@@ -97,10 +97,11 @@ void compute_accel(sim_state_t* state, sim_param_t* params) {
     }
 
     /* Constants for interaction term */
-    float C0 = mass / M_PI / ( (h2)*(h2) );
+    float C0 = mass / M_PI / (h2*h2);
     float Cp =  15*k;
     float Cv = -40*mu;
 
+    /* Now compute interaction forces */
     for (i = 0; i < n; ++i) {
         particle_node* restrict bin = &bins[i];
         const float rhoi = bin->rho;
@@ -109,8 +110,8 @@ void compute_accel(sim_state_t* state, sim_param_t* params) {
             particle_node* restrict bin2 = &bins[j];
             const float rhoj = bin2->rho;
 
-            dx = bin->x[0] - bin2->x[0];
-            dy = bin->x[1] - bin2->x[1];
+            dx = (bin->x[0]) - (bin2->x[0]);
+            dy = (bin->x[1]) - (bin2->x[1]);
             r2 = dx * dx + dy * dy;
 
             if (r2 < h2) {

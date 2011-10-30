@@ -99,14 +99,14 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
     float rho0 = param->rho0;
     float rho2s = 0;
     float rhos  = 0;
-    float trho = 0;
+    float trho;
 
     for (int i = 0; i < s->n; ++i) {
         trho = s->bins[i].rho;
         rho2s += trho * trho;
         rhos += trho;
     }
-    s->mass *= ( rho0*rhos / rho2s );
+    s->mass *= (rho0*rhos / rho2s);
 }
 
 sim_state_t* init_particles(sim_param_t* param)
