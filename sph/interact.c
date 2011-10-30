@@ -101,8 +101,8 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
         for (int j = i+1; j < n; ++j) {
             float dx = state->particles[i].x[0] - state->particles[j].x[0];
             float dy = state->particles[i].x[1] - state->particles[j].x[1];
-
             float r2 = dx*dx + dy*dy;
+
             if (r2 < h2) {
                 const float rhoj = state->particles[j].rho;
                 float q = sqrt(r2)/h;
@@ -112,10 +112,10 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
                 float wv = w0 * Cv;
                 float dvx = (state->particles[i].v[0]) - (state->particles[j].v[0]);
                 float dvy = (state->particles[i].v[1]) - (state->particles[j].v[1]);
-                state->particles[i].a[0] = (wp*dx + wv*dvx);
-                state->particles[i].a[1] = (wp*dy + wv*dvy);
-                state->particles[j].a[0] = (wp*dx + wv*dvx);
-                state->particles[j].a[1] = (wp*dy + wv*dvy);
+                state->particles[i].a[0] += (wp*dx + wv*dvx);
+                state->particles[i].a[1] += (wp*dy + wv*dvy);
+                state->particles[j].a[0] -= (wp*dx + wv*dvx);
+                state->particles[j].a[1] -= (wp*dy + wv*dvy);
             }
         }
     }

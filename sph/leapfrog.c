@@ -57,13 +57,28 @@ void leapfrog_step(sim_state_t* s, double dt)
     for (i = 0; i < n; ++i) {
         s->particles[i].vh[0] += s->particles[i].a[0] * dt;
         s->particles[i].vh[1] += s->particles[i].a[1] * dt;
-        s->particles[i].v[0]   = s->particles[i].vh[0] + s->particles[i].a[0] * dt / 2;
-        s->particles[i].v[0]   = s->particles[i].vh[1] + s->particles[i].a[1] * dt / 2;
-        s->particles[i].x[0]  += s->particles[i].vh[0] * dt;
-        s->particles[i].x[1]  += s->particles[i].vh[1] * dt;
     }
 
-    /* reflect_bc(s); */
+    for (i = 0; i < n; ++i) {
+        s->particles[i].v[0] = s->particles[i].vh[0] + s->particles[i].a[0] * dt  / 2;
+        s->particles[i].v[1] = s->particles[i].vh[1] + s->particles[i].a[1] * dt  / 2;
+    }
+
+    for (i = 0; i < n; ++i) {
+        s->particles[i].x[0] += s->particles[i].vh[0] * dt;
+        s->particles[i].x[1] += s->particles[i].vh[1] * dt;
+    }
+
+    /* for (i = 0; i < n; ++i) { */
+    /*     s->particles[i].vh[0] += s->particles[i].a[0] * dt; */
+    /*     s->particles[i].vh[1] += s->particles[i].a[1] * dt; */
+    /*     s->particles[i].v[0]   = s->particles[i].vh[0] + s->particles[i].a[0] * dt / 2; */
+    /*     s->particles[i].v[0]   = s->particles[i].vh[1] + s->particles[i].a[1] * dt / 2; */
+    /*     s->particles[i].x[0]  += s->particles[i].vh[0] * dt; */
+    /*     s->particles[i].x[1]  += s->particles[i].vh[1] * dt; */
+    /* } */
+
+    reflect_bc(s);
 }
 
 /*@T
@@ -109,8 +124,10 @@ static void damp_reflect(int which, float barrier, particle_t *offender)
     const float DAMP = 0.75;
 
     // Ignore degenerate cases
-    if (offender->v[which] == 0)
+    if (offender->v[which] == 0) {
+        printf("Degenerate!\n");
         return;
+    }
 
     // Scale back the distance traveled based on time from collision
     float tbounce = ((offender->x[which])-barrier)/(offender->v[which]);

@@ -78,6 +78,9 @@ sim_state_t* place_particles(sim_param_t* param,
             }
         }
     }
+
+    assert(p == count);
+
     return s;
 }
 
@@ -106,12 +109,14 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
         rhos  += s->particles[i].rho;
     }
 
+    printf("Normalized mass by factor of %4g\n", (rho0 * rhos/rho2s));
+
     s->mass *= (rho0*rhos / rho2s);
 }
 
 sim_state_t* init_particles(sim_param_t* param)
 {
-    sim_state_t* s = place_particles(param, circ_indicator);
+    sim_state_t* s = place_particles(param, box_indicator);
     normalize_mass(s, param);
     return s;
 }
@@ -131,6 +136,11 @@ void check_state(sim_state_t* s)
     for (int i = 0; i < s->n; ++i) {
         float xi = s->particles[i].x[0];
         float yi = s->particles[i].x[1];
+        if (!(xi >= 0 && xi <= 1))
+            printf("Error in xi: %e\n", xi);
+        if (!(yi >= 0 && yi <= 1))
+            printf("Error in yi: %e\n", yi);
+
         assert(xi >= 0 && xi <= 1);
         assert(yi >= 0 && yi <= 1);
     }
@@ -152,14 +162,14 @@ int main(int argc, char** argv)
     write_header(fp, n);
     write_frame_data(fp, n, state->particles, NULL);
     compute_accel(state, &params);
-    check_state(state); printf("Compute_accel passed.\n");
     leapfrog_start(state, dt);
-    check_state(state); printf("Leapfrog_start passed.\n");
+    check_state(state);
     for (int frame = 1; frame < nframes; ++frame) {
         printf("Rendering frame %d of %d.\n", frame, nframes);
         for (int i = 0; i < npframe; ++i) {
             compute_accel(state, &params); /* check_state(state); printf("Compute_accel passed.\n"); */
             leapfrog_step(state, dt); /* check_state(state); printf("Leapfrog_step passed.\n"); */
+            check_state(state);
         }
         write_frame_data(fp, n, state->particles, NULL);
     }
