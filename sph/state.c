@@ -135,6 +135,29 @@ void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t**
     *mbins = k;
 }
 
+/* Sort particle array to improve bin locality */
+void bucket_sort(sim_state_t* state) {
+    int i, j;
+    particle_t* curr;
+    particle_t* new_particles = (particle_t*) calloc(state->n, sizeof(particle_t));
+
+    /* Put each particle into its proper bin */
+    clear_bins(state);
+    for (i = 0; i < state->n; ++i)
+        add_to_bin(state, &(state->particles[i]));
+
+    for (i = j = 0; i < state->nbins; ++i) {
+        curr = state->bins[i];
+        while (curr) {
+            new_particles[j++] = *curr;
+            curr = curr -> next;
+        }
+    }
+
+    state->particles = new_particles;
+    free(state->particles);
+}
+
 void free_state(sim_state_t* s)
 {
     free(s->particles);

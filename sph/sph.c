@@ -155,6 +155,7 @@ int main(int argc, char** argv)
     int npframe = params.npframe;
     float dt    = params.dt;
     int n       = state->n;
+    int counter = 0;
 
     tic(0);
     write_header(fp, n);
@@ -163,11 +164,14 @@ int main(int argc, char** argv)
     leapfrog_start(state, dt);
     check_state(state);
     for (int frame = 1; frame < nframes; ++frame) {
-        /* printf("Rendering frame %3d of %d.\n", frame, nframes); */
         for (int i = 0; i < npframe; ++i) {
             compute_accel(state, &params);
             leapfrog_step(state, dt);
             check_state(state);
+            counter++;
+
+            if (counter + 1 % 200 == 0)
+                bucket_sort(state);
         }
         write_frame_data(fp, n, state->particles, NULL);
     }
