@@ -9,7 +9,7 @@ all: exe doc
 # =======
 
 sph.x: sph.o params.o state.o interact.o leapfrog.o io_bin.o timing.o
-	$(CC) -fopenmp $(CFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 
 sph.o: sph.c params.h state.h interact.h leapfrog.h io.h timing.h
 
@@ -55,4 +55,4 @@ clean:
 	rm -f derivation.log derivation.aux derivation.out
 
 realclean: clean
-	rm -f main.pdf derivation.pdf *.x run.out
+	rm -f main.pdf derivation.pdf *.x run.out timing_omp.out

@@ -1,0 +1,10 @@
+#!/bin/bash
+#
+#$ -cwd
+#$ -j y
+#$ -S /bin/bash
+#
+
+export OMP_NUM_THREADS=8
+./sph.x > timing_omp.out
+exit 0

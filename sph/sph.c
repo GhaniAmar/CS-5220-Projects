@@ -107,8 +107,6 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
         rhos  += s->particles[i].rho;
     }
 
-    printf("Normalized mass by factor of %4g\n", (rho0 * rhos/rho2s));
-
     s->mass *= (rho0*rhos / rho2s);
 }
 
