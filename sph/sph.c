@@ -4,6 +4,7 @@
 #include <math.h>
 #include <assert.h>
 #include <stdio.h>
+#include <omp.h>
 
 #include "io.h"
 #include "params.h"
@@ -107,8 +108,6 @@ void normalize_mass(sim_state_t* s, sim_param_t* param)
         rhos  += s->particles[i].rho;
     }
 
-    printf("Normalized mass by factor of %4g\n", (rho0 * rhos/rho2s));
-
     s->mass *= (rho0*rhos / rho2s);
 }
 
@@ -157,7 +156,8 @@ int main(int argc, char** argv)
     int n       = state->n;
     int counter = 0;
 
-    tic(0);
+    float start = omp_get_wtime();
+
     write_header(fp, n);
     write_frame_data(fp, n, state->particles, NULL);
     compute_accel(state, &params);
@@ -175,7 +175,7 @@ int main(int argc, char** argv)
         }
         write_frame_data(fp, n, state->particles, NULL);
     }
-    printf("Ran in %g seconds\n", toc(0));
+    printf("Ran in %g seconds\n", omp_get_wtime() - start);
 
     fclose(fp);
     free_state(state);

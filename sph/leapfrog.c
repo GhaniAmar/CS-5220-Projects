@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "state.h"
+#include <omp.h>
 
-static void reflect_bc(sim_state_t* s);
+static void damp_reflect(int which, float barrier, sim_state_t* s, int i);
 
 /*@T
  * \section{Leapfrog integration}
@@ -52,24 +53,27 @@ static void reflect_bc(sim_state_t* s);
 void leapfrog_step(sim_state_t* s, double dt)
 {
     int i;
-    int n = s->n;
+    const int n = s->n;
+    const float eps  = 1e-4;
+    const float XMIN = eps;
+    const float XMAX = 1.0 - eps;
+    const float YMIN = eps;
+    const float YMAX = 1.0 - eps;
 
+    /* Manually inlined the reflect_bc code here to cut down the number of parallel sections */
+    #pragma omp parallel for shared(s)
     for (i = 0; i < n; ++i) {
         s->particles[i].vh[0] += s->particles[i].a[0] * dt;
         s->particles[i].vh[1] += s->particles[i].a[1] * dt;
+        s->particles[i].v[0]   = s->particles[i].vh[0] + s->particles[i].a[0] * dt  / 2;
+        s->particles[i].v[1]   = s->particles[i].vh[1] + s->particles[i].a[1] * dt  / 2;
+        s->particles[i].x[0]  += s->particles[i].vh[0] * dt;
+        s->particles[i].x[1]  += s->particles[i].vh[1] * dt;
+        if (s->particles[i].x[0] < XMIN) damp_reflect(0, XMIN, s, i);
+        if (s->particles[i].x[0] > XMAX) damp_reflect(0, XMAX, s, i);
+        if (s->particles[i].x[1] < YMIN) damp_reflect(1, YMIN, s, i);
+        if (s->particles[i].x[1] > YMAX) damp_reflect(1, YMAX, s, i);
     }
-
-    for (i = 0; i < n; ++i) {
-        s->particles[i].v[0] = s->particles[i].vh[0] + s->particles[i].a[0] * dt  / 2;
-        s->particles[i].v[1] = s->particles[i].vh[1] + s->particles[i].a[1] * dt  / 2;
-    }
-
-    for (i = 0; i < n; ++i) {
-        s->particles[i].x[0] += s->particles[i].vh[0] * dt;
-        s->particles[i].x[1] += s->particles[i].vh[1] * dt;
-    }
-
-    reflect_bc(s);
 }
 
 /*@T
@@ -85,17 +89,25 @@ void leapfrog_start(sim_state_t* s, double dt)
 {
     int i;
     int n = s->n;
+    const float eps  = 1e-4;
+    const float XMIN = eps;
+    const float XMAX = 1.0 - eps;
+    const float YMIN = eps;
+    const float YMAX = 1.0 - eps;
 
-    for (i = 0; i < n; ++i) s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
-    for (i = 0; i < n; ++i) s->particles[i].vh[1] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
-
-    for (i = 0; i < n; ++i) s->particles[i].v[0] += s->particles[i].a[0] * dt;
-    for (i = 0; i < n; ++i) s->particles[i].v[1] += s->particles[i].a[1] * dt;
-
-    for (i = 0; i < n; ++i) s->particles[i].x[0] += s->particles[i].vh[0] * dt;
-    for (i = 0; i < n; ++i) s->particles[i].x[1] += s->particles[i].vh[1] * dt;
-
-    reflect_bc(s);
+    #pragma omp parallel for shared(s)
+    for (i = 0; i < n; ++i) {
+        s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
+        s->particles[i].vh[1] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
+        s->particles[i].v[0] += s->particles[i].a[0] * dt;
+        s->particles[i].v[1] += s->particles[i].a[1] * dt;
+        s->particles[i].x[0] += s->particles[i].vh[0] * dt;
+        s->particles[i].x[1] += s->particles[i].vh[1] * dt;
+        if (s->particles[i].x[0] < XMIN) damp_reflect(0, XMIN, s, i);
+        if (s->particles[i].x[0] > XMAX) damp_reflect(0, XMAX, s, i);
+        if (s->particles[i].x[1] < YMIN) damp_reflect(1, YMIN, s, i);
+        if (s->particles[i].x[1] > YMAX) damp_reflect(1, YMAX, s, i);
+    }
 }
 
 /*@T
@@ -137,29 +149,4 @@ static void damp_reflect(int which, float barrier, sim_state_t* s, int i)
     p->v[1]  *= DAMP;
     p->vh[0] *= DAMP;
     p->vh[1] *= DAMP;
-}
-
-
-/*@T
- *
- * For each particle, we need to check for reflections on each
- * of the four walls of the computational domain.
- *@c*/
-static void reflect_bc(sim_state_t* s)
-{
-    // Boundaries of the computational domain
-    const float eps  = 1e-4;
-    const float XMIN = eps;
-    const float XMAX = 1.0 - eps;
-    const float YMIN = eps;
-    const float YMAX = 1.0 - eps;
-
-    int n = s->n;
-
-    for (int i = 0; i < n; ++i) {
-        if (s->particles[i].x[0] < XMIN) damp_reflect(0, XMIN, s, i);
-        if (s->particles[i].x[0] > XMAX) damp_reflect(0, XMAX, s, i);
-        if (s->particles[i].x[1] < YMIN) damp_reflect(1, YMIN, s, i);
-        if (s->particles[i].x[1] > YMAX) damp_reflect(1, YMAX, s, i);
-    }
 }
