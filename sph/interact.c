@@ -38,56 +38,45 @@ void compute_density(sim_state_t* s, sim_param_t* params)
     float C  = 4 * s->mass / M_PI / h8;
     int tid, size, startindex, endindex;
 
-    #pragma omp parallel shared(s,params,n,h,h2,h8,C,size) private(i,j,len,k,node_buffer,curr,dx,dy,r2,z,rho_ij,tid) {
-    tid = omp_get_thread_num();
-    size =  omp_get_num_threads();
+    #pragma omp parallel \
+        shared(s,params,n,h,h2,h8,C,size)\
+        private(i,j,len,k,node_buffer,curr,dx,dy,r2,z,rho_ij,tid) {
 
-    #pragma omp for
-    for (i = 0; i < n; ++i) {
-        s->particles[i].rho = 4 * s->mass / M_PI / h2;
-    }
-    startindex= ceil((tid*s->nbins)/size);
-    endindex= ceil((tid+1)*s->nbins)/size);
+        tid = omp_get_thread_num();
+        size =  omp_get_num_threads();
 
-    for (i = startindex; i < endindex; ++i) {
-        particle_t* llist = s->bins[i];
-        while(llist) {
-            int mbins;
-            get_neighboring_bins(s, llist, node_buffer, &mbins);
+        #pragma omp for
+        for (i = 0; i < n; ++i)
+            s->particles[i].rho = 4 * s->mass / M_PI / h2;
 
-            for (j = 0; j < mbins; ++j) {
-                curr = node_buffer[j];
-                while (curr) {
-                    dx = llist->x[0] - curr->x[0];
-                    dy = llist->x[1] - curr->x[1];
-                    r2 = dx*dx + dy*dy;
-                    z = h2 - r2;
-                    if (z > 0 && r2 != 0)
-                        llist->rho += C*z*z*z;
+        startindex = ceil((tid*s->nbins)/size);
+        endindex = ceil(((tid+1)*s->nbins)/size);
 
-                    curr = curr->next;
+        for (i = startindex; i < endindex; ++i) {
+            particle_t* llist = s->bins[i];
+
+            while(llist) {
+                int mbins;
+                get_neighboring_bins(s, llist, node_buffer, &mbins);
+
+                for (j = 0; j < mbins; ++j) {
+                    curr = node_buffer[j];
+                    while (curr) {
+                        dx = llist->x[0] - curr->x[0];
+                        dy = llist->x[1] - curr->x[1];
+                        r2 = dx*dx + dy*dy;
+                        z = h2 - r2;
+                        if (z > 0 && r2 != 0)
+                            llist->rho += C*z*z*z;
+
+                        curr = curr->next;
+                    }
                 }
+                llist = llist->next;
             }
-            llist = llist->next;
         }
     }
 }
-    /* for (i = 0; i < n; ++i) { */
-    /*     s->particles[i].rho += 4 * s->mass / M_PI / h2; */
-    /*     for (j = i+1; j < n; ++j) { */
-    /*         float dx = s->particles[i].x[0] - s->particles[j].x[0]; */
-    /*         float dy = s->particles[i].x[1] - s->particles[j].x[1]; */
-    /*         float r2 = dx*dx + dy*dy; */
-    /*         float z  = h2-r2; */
-    /*         if (z > 0) { */
-    /*             float rho_ij = C*z*z*z; */
-    /*             s->particles[i].rho += rho_ij; */
-    /*             s->particles[j].rho += rho_ij; */
-    /*         } */
-    /*     } */
-    /* } */
-}
-
 
 /*@T
  * \subsection{Computing forces}
