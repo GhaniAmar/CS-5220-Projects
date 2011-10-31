@@ -53,8 +53,10 @@ static void reflect_bc(sim_state_t* s);
 void leapfrog_step(sim_state_t* s, double dt)
 {
     int i;
-    int n = s->n;
-    #pragma omp parallel shared(s,dt,n) private(i) {
+    const int n = s->n;
+
+    #pragma omp parallel shared(s) private(i)
+    {
         #pragma omp for
         for (i = 0; i < n; ++i) {
             s->particles[i].vh[0] += s->particles[i].a[0] * dt;
@@ -73,9 +75,9 @@ void leapfrog_step(sim_state_t* s, double dt)
     }
 
     reflect_bc(s);
-    clear_bins(state);
+    clear_bins(s);
     for (i = 0; i < n; ++i)
-        add_to_bin(state, &(state->particles[i]));
+        add_to_bin(s, &(s->particles[i]));
 
     check_bins(s);
 }
@@ -92,8 +94,10 @@ void leapfrog_step(sim_state_t* s, double dt)
 void leapfrog_start(sim_state_t* s, double dt)
 {
     int i;
-    int n = s->n;
-    #pragma omp parallel shared(s,dt,n) private(i) {
+    const int n = s->n;
+
+    #pragma omp parallel shared(s) private(i)
+    {
         #pragma omp for
         for (i = 0; i < n; ++i) {
             s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
@@ -112,9 +116,9 @@ void leapfrog_start(sim_state_t* s, double dt)
     }
 
     reflect_bc(s);
-    clear_bins(state);
+    clear_bins(s);
     for (i = 0; i < n; ++i)
-        add_to_bin(state, &(state->particles[i]));
+        add_to_bin(s, &(s->particles[i]));
 
     check_bins(s);
 }

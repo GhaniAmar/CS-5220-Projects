@@ -26,12 +26,12 @@
 
 void compute_density(sim_state_t* s, sim_param_t* params)
 {
-    int i, j, len, k;
+    int i, j;
     int n = s->n;
     particle_t* node_buffer[n];
     particle_t* curr;
 
-    float dx, dy, r2, z, rho_ij;
+    float dx, dy, r2, z;
     float h  = params->h;
     float h2 = h*h;
     float h8 = ( h2*h2 )*( h2*h2 );
@@ -39,8 +39,9 @@ void compute_density(sim_state_t* s, sim_param_t* params)
     int tid, size, startindex, endindex;
 
     #pragma omp parallel \
-        shared(s,params,n,h,h2,h8,C,size)\
-        private(i,j,len,k,node_buffer,curr,dx,dy,r2,z,rho_ij,tid) {
+        shared(s,params,n,h,h2,h8,C,size) \
+        private(i,j,node_buffer,curr,dx,dy,r2,z,tid)
+    {
 
         tid = omp_get_thread_num();
         size =  omp_get_num_threads();
@@ -106,7 +107,7 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     int i, j, mbins, tid, size, startindex, endindex;
 
     // Unpack system state
-    int n = state->n;
+    const int n = state->n;
 
     // Compute density and color
     compute_density(state, params);
@@ -119,61 +120,64 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     }
 
     // Constants for interaction term
-    float C0 = mass / M_PI / ( (h2)*(h2) );
-    float Cp =  15*k;
-    float Cv = -40*mu;
+    const float C0 = mass / M_PI / ( (h2)*(h2) );
+    const float Cp =  15*k;
+    const float Cv = -40*mu;
 
     float x, y, dx, dy, r2;
     particle_t* node_buffer[4] = {0, 0, 0, 0};
     particle_t* curr;
 
-    #pragma omp parallel shared(state,params,n,h,rho0,k,mu,g,mass,h2,C0,Cp,Cvsize)\
-        private(i,j,mbins,node_buffer,curr,dx,dy,r2,x,y,tid,startindex,endindex) {
-    tid = omp_get_thread_num();
-    size =  omp_get_num_threads();
-    startindex= ceil((tid*s->nbins)/size);
-    endindex= ceil((tid+1)*s->nbins)/size);
+    #pragma omp parallel\
+        shared(state)\
+        private(i,j,mbins,node_buffer,curr,dx,dy,r2,x,y,tid,startindex,endindex)
+    {
+        tid = omp_get_thread_num();
+        size = omp_get_num_threads();
+        startindex = ceil((tid*state->nbins)/size);
+        endindex = ceil(((tid+1)*state->nbins)/size);
 
-    for (i = startindex; i < endindex; ++i) {
-        particle_t* llist = s->bins[i];
-        if (i==endindex-state->nbinwidth) {
-            #pragma omp barrier
-        }
+        for (i = startindex; i < endindex; ++i) {
+            particle_t* llist = state->bins[i];
 
-        while(llist) {
-            const float rhoi = llist->rho;
-            x = llist->x[0];
-            y = llist->x[1];
-
-            get_neighboring_future_bins(state, llist, node_buffer, &mbins);
-
-            for (j = 0; j < mbins; ++j) {
-                curr = node_buffer[j];
-                while (curr) {
-                    dx = x - (curr -> x[0]);
-                    dy = y - (curr -> x[1]);
-                    r2 = dx*dx + dy*dy;
-
-                    if (r2 > 0 && r2 < h2) {
-                        const float rhoj = curr -> rho;
-                        float q = sqrt(r2)/h;
-                        float u = 1 - q;
-                        float w0 = C0 * u/rhoi/rhoj;
-                        float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
-                        float wv = w0 * Cv;
-                        float dvx = (llist->v[0]) - (curr -> v[0]);
-                        float dvy = (llist->v[1]) - (curr -> v[1]);
-                        llist->a[0] += (wp*dx + wv*dvx);
-                        llist->a[1] += (wp*dy + wv*dvy);
-                        curr->a[0] += (wp*dx + wv*dvx);
-                        curr->a[1] += (wp*dy + wv*dvy);
-                    }
-                    curr = curr -> next;
-                }
+            if (i==endindex-state->nbinwidth) {
+                #pragma omp barrier
             }
-            llist= llist -> next;
+
+            while(llist) {
+                const float rhoi = llist->rho;
+                x = llist->x[0];
+                y = llist->x[1];
+
+                get_neighboring_future_bins(state, llist, node_buffer, &mbins);
+
+                for (j = 0; j < mbins; ++j) {
+                    curr = node_buffer[j];
+                    while (curr) {
+                        dx = x - (curr -> x[0]);
+                        dy = y - (curr -> x[1]);
+                        r2 = dx*dx + dy*dy;
+
+                        if (r2 > 0 && r2 < h2) {
+                            const float rhoj = curr -> rho;
+                            float q = sqrt(r2)/h;
+                            float u = 1 - q;
+                            float w0 = C0 * u/rhoi/rhoj;
+                            float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
+                            float wv = w0 * Cv;
+                            float dvx = (llist->v[0]) - (curr -> v[0]);
+                            float dvy = (llist->v[1]) - (curr -> v[1]);
+                            llist->a[0] += (wp*dx + wv*dvx);
+                            llist->a[1] += (wp*dy + wv*dvy);
+                            curr->a[0] += (wp*dx + wv*dvx);
+                            curr->a[1] += (wp*dy + wv*dvy);
+                        }
+                        curr = curr -> next;
+                    }
+                }
+                llist= llist -> next;
+            }
         }
     }
-}
 }
 
