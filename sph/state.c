@@ -137,7 +137,8 @@ void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t**
 
 void get_neighboring_future_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins) {
     int k, width, row, column;
-    float x, y, h, h2, binwidth, N, S, E, W, NW, NE, SE, SW;
+    float x, y, h, h2, binwidth, N, S, E, W, NE, SE;
+    /* float NW, SW; */
     k = 0;
 
     x = particle -> x[0];

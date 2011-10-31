@@ -9,7 +9,7 @@ all: exe doc
 # =======
 
 sph.x: sph.o params.o state.o interact.o leapfrog.o io_bin.o timing.o
-	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+	$(CC) -fopenmp $(CFLAGS) $^ -o $@ $(LIBS)
 
 sph.o: sph.c params.h state.h interact.h leapfrog.h io.h timing.h
 
@@ -28,8 +28,8 @@ io_bin.o: io_bin.c
 
 # =======
 main.pdf: main.tex codes.tex
-derivation.pdf: derivation.tex check_derivation.tex
-
+derivation.pdf: derivation.tex check_derivation.te
+x
 codes.tex: params.h state.h interact.c leapfrog.c sph.c params.c io_bin.c
 	dsbweb -o $@ -c $^
 

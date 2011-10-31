@@ -54,31 +54,30 @@ void leapfrog_step(sim_state_t* s, double dt)
 {
     int i;
     int n = s->n;
-	#pragma omp parallel shared(s,dt,n) private(i)
-	{
-	#pragma omp for
-    for (i = 0; i < n; ++i) {
-        s->particles[i].vh[0] += s->particles[i].a[0] * dt;
-        s->particles[i].vh[1] += s->particles[i].a[1] * dt;
+    #pragma omp parallel shared(s,dt,n) private(i) {
+        #pragma omp for
+        for (i = 0; i < n; ++i) {
+            s->particles[i].vh[0] += s->particles[i].a[0] * dt;
+            s->particles[i].vh[1] += s->particles[i].a[1] * dt;
+        }
+        #pragma omp for
+        for (i = 0; i < n; ++i) {
+            s->particles[i].v[0] = s->particles[i].vh[0] + s->particles[i].a[0] * dt  / 2;
+            s->particles[i].v[1] = s->particles[i].vh[1] + s->particles[i].a[1] * dt  / 2;
+        }
+        #pragma omp for
+        for (i = 0; i < n; ++i) {
+            s->particles[i].x[0] += s->particles[i].vh[0] * dt;
+            s->particles[i].x[1] += s->particles[i].vh[1] * dt;
+        }
     }
-	#pragma omp for
-    for (i = 0; i < n; ++i) {
-        s->particles[i].v[0] = s->particles[i].vh[0] + s->particles[i].a[0] * dt  / 2;
-        s->particles[i].v[1] = s->particles[i].vh[1] + s->particles[i].a[1] * dt  / 2;
-    }
-	#pragma omp for
-    for (i = 0; i < n; ++i) {
-        s->particles[i].x[0] += s->particles[i].vh[0] * dt;
-        s->particles[i].x[1] += s->particles[i].vh[1] * dt;
-    }
-	
-	}
+
     reflect_bc(s);
-	clear_bins(state);
-    for (i = 0; i < n; ++i) {
+    clear_bins(state);
+    for (i = 0; i < n; ++i)
         add_to_bin(state, &(state->particles[i]));
-	}
-	check_bins(s);
+
+    check_bins(s);
 }
 
 /*@T
@@ -94,30 +93,30 @@ void leapfrog_start(sim_state_t* s, double dt)
 {
     int i;
     int n = s->n;
-	#pragma omp parallel shared(s,dt,n) private(i)
-	{
-	#pragma omp for
-    for (i = 0; i < n; ++i) {
-		s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
-		s->particles[i].vh[1] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
-	}
-	#pragma omp for
-    for (i = 0; i < n; ++i) {
-		s->particles[i].v[0] += s->particles[i].a[0] * dt;
-		s->particles[i].v[1] += s->particles[i].a[1] * dt;
-	}
-	#pragma omp for
-    for (i = 0; i < n; ++i) {
-		s->particles[i].x[0] += s->particles[i].vh[0] * dt;
-		s->particles[i].x[1] += s->particles[i].vh[1] * dt;
-	}
-	}
+    #pragma omp parallel shared(s,dt,n) private(i) {
+        #pragma omp for
+        for (i = 0; i < n; ++i) {
+            s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
+            s->particles[i].vh[1] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
+        }
+        #pragma omp for
+        for (i = 0; i < n; ++i) {
+            s->particles[i].v[0] += s->particles[i].a[0] * dt;
+            s->particles[i].v[1] += s->particles[i].a[1] * dt;
+        }
+        #pragma omp for
+        for (i = 0; i < n; ++i) {
+            s->particles[i].x[0] += s->particles[i].vh[0] * dt;
+            s->particles[i].x[1] += s->particles[i].vh[1] * dt;
+        }
+    }
+
     reflect_bc(s);
-	clear_bins(state);
-    for (i = 0; i < n; ++i) {
+    clear_bins(state);
+    for (i = 0; i < n; ++i)
         add_to_bin(state, &(state->particles[i]));
-	}
-	check_bins(s);
+
+    check_bins(s);
 }
 
 /*@T

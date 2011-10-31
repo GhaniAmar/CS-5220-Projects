@@ -36,42 +36,42 @@ void compute_density(sim_state_t* s, sim_param_t* params)
     float h2 = h*h;
     float h8 = ( h2*h2 )*( h2*h2 );
     float C  = 4 * s->mass / M_PI / h8;
-	int tid, size, startindex, endindex;
-	
-	#pragma omp parallel shared(s,params,n,h,h2,h8,C,size) private(i,j,len,k,node_buffer,curr,dx,dy,r2,z,rho_ij,tid)
-	{
-	tid = omp_get_thread_num();
-	size =  omp_get_num_threads();
-	#pragma omp for
+    int tid, size, startindex, endindex;
+
+    #pragma omp parallel shared(s,params,n,h,h2,h8,C,size) private(i,j,len,k,node_buffer,curr,dx,dy,r2,z,rho_ij,tid) {
+    tid = omp_get_thread_num();
+    size =  omp_get_num_threads();
+
+    #pragma omp for
     for (i = 0; i < n; ++i) {
         s->particles[i].rho = 4 * s->mass / M_PI / h2;
     }
-	startindex= ceil((tid*s->nbins)/size);
-	endindex= ceil((tid+1)*s->nbins)/size);
-	
+    startindex= ceil((tid*s->nbins)/size);
+    endindex= ceil((tid+1)*s->nbins)/size);
+
     for (i = startindex; i < endindex; ++i) {
-		particle_t* llist = s->bins[i];
-		while(llist) {
-			int mbins;
-			get_neighboring_bins(s, llist, node_buffer, &mbins);
+        particle_t* llist = s->bins[i];
+        while(llist) {
+            int mbins;
+            get_neighboring_bins(s, llist, node_buffer, &mbins);
 
-			for (j = 0; j < mbins; ++j) {
-				curr = node_buffer[j];
-				while (curr) {
-					dx = llist->x[0] - curr->x[0];
-					dy = llist->x[1] - curr->x[1];
-					r2 = dx*dx + dy*dy;
-					z = h2 - r2;
-					if (z > 0 && r2 != 0)
-						llist->rho += C*z*z*z;
+            for (j = 0; j < mbins; ++j) {
+                curr = node_buffer[j];
+                while (curr) {
+                    dx = llist->x[0] - curr->x[0];
+                    dy = llist->x[1] - curr->x[1];
+                    r2 = dx*dx + dy*dy;
+                    z = h2 - r2;
+                    if (z > 0 && r2 != 0)
+                        llist->rho += C*z*z*z;
 
-					curr = curr->next;
-				}
-			}
-			llist = llist->next;
-		}
-	}
-	}
+                    curr = curr->next;
+                }
+            }
+            llist = llist->next;
+        }
+    }
+}
     /* for (i = 0; i < n; ++i) { */
     /*     s->particles[i].rho += 4 * s->mass / M_PI / h2; */
     /*     for (j = i+1; j < n; ++j) { */
@@ -121,9 +121,9 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
 
     // Compute density and color
     compute_density(state, params);
-	
+
     // Start with gravity and surface forces
-	#pragma omp parallel for shared(state) private(i)
+    #pragma omp parallel for shared(state) private(i)
     for (i = 0; i < n; ++i) {
         state->particles[i].a[0] = 0;
         state->particles[i].a[1] = -g;
@@ -138,53 +138,53 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     particle_t* node_buffer[4] = {0, 0, 0, 0};
     particle_t* curr;
 
-    #pragma omp parallel shared(state,params,n,h,rho0,k,mu,g,mass,h2,C0,Cp,Cvsize) private(i,j,mbins,node_buffer,curr,dx,dy,r2,x,y,tid,startindex,endindex)
-	{
-	tid = omp_get_thread_num();
-	size =  omp_get_num_threads();
-	startindex= ceil((tid*s->nbins)/size);
-	endindex= ceil((tid+1)*s->nbins)/size);
-	
-	
+    #pragma omp parallel shared(state,params,n,h,rho0,k,mu,g,mass,h2,C0,Cp,Cvsize)\
+        private(i,j,mbins,node_buffer,curr,dx,dy,r2,x,y,tid,startindex,endindex) {
+    tid = omp_get_thread_num();
+    size =  omp_get_num_threads();
+    startindex= ceil((tid*s->nbins)/size);
+    endindex= ceil((tid+1)*s->nbins)/size);
+
     for (i = startindex; i < endindex; ++i) {
-		particle_t* llist = s->bins[i];
-		if (i==endindex-state->nbinwidth) {
-				#pragma omp barrier
-			}
-		while(llist) {
-			const float rhoi = llist->rho;
-			x = llist->x[0];
-			y = llist->x[1];
+        particle_t* llist = s->bins[i];
+        if (i==endindex-state->nbinwidth) {
+            #pragma omp barrier
+        }
 
-			get_neighboring_future_bins(state, llist, node_buffer, &mbins);
+        while(llist) {
+            const float rhoi = llist->rho;
+            x = llist->x[0];
+            y = llist->x[1];
 
-			for (j = 0; j < mbins; ++j) {
-				curr = node_buffer[j];
-				while (curr) {
-					dx = x - (curr -> x[0]);
-					dy = y - (curr -> x[1]);
-					r2 = dx*dx + dy*dy;
+            get_neighboring_future_bins(state, llist, node_buffer, &mbins);
 
-					if (r2 > 0 && r2 < h2) {
-						const float rhoj = curr -> rho;
-						float q = sqrt(r2)/h;
-						float u = 1 - q;
-						float w0 = C0 * u/rhoi/rhoj;
-						float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
-						float wv = w0 * Cv;
-						float dvx = (llist->v[0]) - (curr -> v[0]);
-						float dvy = (llist->v[1]) - (curr -> v[1]);
-						llist->a[0] += (wp*dx + wv*dvx);
-						llist->a[1] += (wp*dy + wv*dvy);
-						curr->a[0] += (wp*dx + wv*dvx);
-						curr->a[1] += (wp*dy + wv*dvy);
-					}
-					curr = curr -> next;
-				}
-			}
-			llist= llist -> next;
-		}
+            for (j = 0; j < mbins; ++j) {
+                curr = node_buffer[j];
+                while (curr) {
+                    dx = x - (curr -> x[0]);
+                    dy = y - (curr -> x[1]);
+                    r2 = dx*dx + dy*dy;
+
+                    if (r2 > 0 && r2 < h2) {
+                        const float rhoj = curr -> rho;
+                        float q = sqrt(r2)/h;
+                        float u = 1 - q;
+                        float w0 = C0 * u/rhoi/rhoj;
+                        float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
+                        float wv = w0 * Cv;
+                        float dvx = (llist->v[0]) - (curr -> v[0]);
+                        float dvy = (llist->v[1]) - (curr -> v[1]);
+                        llist->a[0] += (wp*dx + wv*dvx);
+                        llist->a[1] += (wp*dy + wv*dvy);
+                        curr->a[0] += (wp*dx + wv*dvx);
+                        curr->a[1] += (wp*dy + wv*dvy);
+                    }
+                    curr = curr -> next;
+                }
+            }
+            llist= llist -> next;
+        }
     }
-	}
+}
 }
 
