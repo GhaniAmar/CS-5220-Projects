@@ -25,12 +25,12 @@
 
 void compute_density(sim_state_t* s, sim_param_t* params)
 {
-    int i, j, len;
+    int i, j;
     int n = s->n;
     particle_t* node_buffer[n];
     particle_t* curr;
 
-    float dx, dy, r2, z, rho_ij;
+    float dx, dy, r2, z;
     float h  = params->h;
     float h2 = h*h;
     float h8 = ( h2*h2 )*( h2*h2 );
@@ -61,21 +61,6 @@ void compute_density(sim_state_t* s, sim_param_t* params)
             }
         }
     }
-
-    /* for (i = 0; i < n; ++i) { */
-    /*     s->particles[i].rho += 4 * s->mass / M_PI / h2; */
-    /*     for (j = i+1; j < n; ++j) { */
-    /*         float dx = s->particles[i].x[0] - s->particles[j].x[0]; */
-    /*         float dy = s->particles[i].x[1] - s->particles[j].x[1]; */
-    /*         float r2 = dx*dx + dy*dy; */
-    /*         float z  = h2-r2; */
-    /*         if (z > 0) { */
-    /*             float rho_ij = C*z*z*z; */
-    /*             s->particles[i].rho += rho_ij; */
-    /*             s->particles[j].rho += rho_ij; */
-    /*         } */
-    /*     } */
-    /* } */
 }
 
 
@@ -124,71 +109,40 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     float Cv = -40*mu;
 
     float x, y, dx, dy, r2;
-    particle_t* node_buffer[4] = {0, 0, 0, 0};
+    particle_t* node_buffer[9];
     particle_t* curr;
 
     clear_bins(state);
     for (i = 0; i < n; ++i)
         add_to_bin(state, &(state->particles[i]));
-    check_bins(state);
 
-    /* for (i = 0; i < n; ++i) { */
-    /*     const float rhoi = state->particles[i].rho; */
-    /*     x = state->particles[i].x[0]; */
-    /*     y = state->particles[i].x[1]; */
-
-    /*     get_neighboring_bins(state, &(state->particles[i]), node_buffer, &mbins); */
-
-
-    /*     for (j = 0; j < mbins; ++j) { */
-    /*         printf("%d bins received.\n", mbins); */
-    /*         curr = node_buffer[j]; */
-    /*         while (curr) { */
-    /*             if (curr != &(state->particles[i])) { */
-    /*                 dx = x - (curr -> x[0]); */
-    /*                 dy = y - (curr -> x[1]); */
-    /*                 r2 = dx*dx + dy*dy; */
-
-    /*                 if (r2 < h2) { */
-    /*                     const float rhoj = state->particles[j].rho; */
-    /*                     float q = sqrt(r2)/h; */
-    /*                     float u = 1 - q; */
-    /*                     float w0 = C0 * u/rhoi/rhoj; */
-    /*                     float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q; */
-    /*                     float wv = w0 * Cv; */
-    /*                     float dvx = (state->particles[i].v[0]) - (curr -> v[0]); */
-    /*                     float dvy = (state->particles[i].v[1]) - (curr -> v[1]); */
-    /*                     state->particles[i].a[0] += (wp*dx + wv*dvx); */
-    /*                     state->particles[i].a[1] += (wp*dy + wv*dvy); */
-    /*                 } */
-    /*             } */
-    /*             curr = curr -> next; */
-    /*         } */
-    /*     } */
-    /* } */
-
-
-    // Now compute interaction forces
-    for (int i = 0; i < n; ++i) {
+    for (i = 0; i < n; ++i) {
         const float rhoi = state->particles[i].rho;
-        for (int j = i+1; j < n; ++j) {
-            float dx = state->particles[i].x[0] - state->particles[j].x[0];
-            float dy = state->particles[i].x[1] - state->particles[j].x[1];
-            float r2 = dx*dx + dy*dy;
+        x = state->particles[i].x[0];
+        y = state->particles[i].x[1];
 
-            if (r2 < h2) {
-                const float rhoj = state->particles[j].rho;
-                float q = sqrt(r2)/h;
-                float u = 1-q;
-                float w0 = C0 * u/rhoi/rhoj;
-                float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
-                float wv = w0 * Cv;
-                float dvx = (state->particles[i].v[0]) - (state->particles[j].v[0]);
-                float dvy = (state->particles[i].v[1]) - (state->particles[j].v[1]);
-                state->particles[i].a[0] += (wp*dx + wv*dvx);
-                state->particles[i].a[1] += (wp*dy + wv*dvy);
-                state->particles[j].a[0] -= (wp*dx + wv*dvx);
-                state->particles[j].a[1] -= (wp*dy + wv*dvy);
+        get_neighboring_bins(state, &(state->particles[i]), node_buffer, &mbins);
+
+        for (j = 0; j < mbins; ++j) {
+            curr = node_buffer[j];
+            while (curr) {
+                dx = x - (curr -> x[0]);
+                dy = y - (curr -> x[1]);
+                r2 = dx*dx + dy*dy;
+
+                if (r2 > 0 && r2 < h2) {
+                    const float rhoj = curr -> rho;
+                    float q = sqrt(r2)/h;
+                    float u = 1 - q;
+                    float w0 = C0 * u/rhoi/rhoj;
+                    float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
+                    float wv = w0 * Cv;
+                    float dvx = (state->particles[i].v[0]) - (curr -> v[0]);
+                    float dvy = (state->particles[i].v[1]) - (curr -> v[1]);
+                    state->particles[i].a[0] += (wp*dx + wv*dvx);
+                    state->particles[i].a[1] += (wp*dy + wv*dvy);
+                }
+                curr = curr -> next;
             }
         }
     }

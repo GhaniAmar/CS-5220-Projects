@@ -40,8 +40,6 @@ typedef struct sim_state_t {
 sim_state_t* alloc_state(int n, sim_param_t* params);
 void free_state(sim_state_t* s);
 
-int len(particle_t* particle);
-
 void clear_bins(sim_state_t* state);
 void add_to_bin(sim_state_t* state, particle_t* particle);
 void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins);

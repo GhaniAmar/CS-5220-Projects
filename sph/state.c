@@ -4,6 +4,9 @@
 #include <assert.h>
 #include <stdio.h>
 
+#define SQ(x) ((x) * (x))
+#define SQDIST(x1,y1,x2,y2) (((x1) - (x2)) * ((x1) - (x2)) + ((y1) - (y2)) * ((y1) - (y2)))
+
 sim_state_t* alloc_state(int n, sim_param_t* params)
 {
     int i;
@@ -30,13 +33,6 @@ sim_state_t* alloc_state(int n, sim_param_t* params)
 
     return s;
 }
-
-int len(particle_t* particle) {
-    int n = 0;
-    while (particle) {particle = particle->next; n++;}
-    return n;
-}
-
 
 void clear_bins(sim_state_t* state) {
     int i;
@@ -71,8 +67,6 @@ void check_bins(sim_state_t* state) {
     assert(n == count);
 }
 
-#define SQ(x) ((x) * (x))
-
 /* Returns every particle as its own bin */
 /* void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins) { */
 /*     int i; */
@@ -86,107 +80,60 @@ void check_bins(sim_state_t* state) {
 /*     *mbins = state->n; */
 /* } */
 
-/* Returns the ~9 bins around the particle */
 void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins) {
     int k, width, row, column;
+    float x, y, h, h2, binwidth, N, S, E, W, NW, NE, SE, SW;
     k = 0;
 
+    x = particle -> x[0];
+    y = particle -> x[1];
+    h = state -> h;
+    h2 = SQ(h);
+    binwidth = 1/((float) state->nbinwidth);
+
     width = state->nbinwidth;
-    column = floor((particle->x[0]) * width);
-    row = floor((particle->x[1]) * width);
+    column = (int) ((particle->x[0]) * width);
+    row = (int) ((particle->x[1]) * width);
+
+    N = y - row * binwidth;
+    S = (row + 1) * binwidth - y;
+    E = (column + 1) * binwidth - x;
+    W = x - column * binwidth;
 
     node_buffer[k++] = state->bins[column * width + row];
 
-    if (row > 0) {
+    if (row > 0 && N < h) {
         node_buffer[k++] = state->bins[column * width + (row - 1)];
 
-        if (column > 0)
+        NW = SQDIST(x, y, column * binwidth, row * binwidth);
+        if (column > 0 && NW < h2)
             node_buffer[k++] = state->bins[(column - 1) * width + (row - 1)];
 
-        if (column < width - 1)
+        NE = SQDIST(x, y, (column + 1) * binwidth, row * binwidth);
+        if (column < width - 1 && NE < h2)
             node_buffer[k++] = state->bins[(column + 1) * width + (row - 1)];
     }
 
-    if (row < width - 1) {
+    if (row < width - 1 && S < h) {
         node_buffer[k++] = state->bins[column * width + (row + 1)];
 
-        if (column > 0)
+        SW = SQDIST(x, y, column * binwidth, (row + 1) * binwidth);
+        if (column > 0 && SW < h2)
             node_buffer[k++] = state->bins[(column - 1) * width + (row + 1)];
 
-        if (column < width - 1)
+        SE = SQDIST(x, y, (column + 1) * binwidth, (row + 1) * binwidth);
+        if (column < width - 1 && SE < h2)
             node_buffer[k++] = state->bins[(column + 1) * width + (row + 1)];
     }
 
-    if (column > 0)
+    if (column > 0 && W < h)
         node_buffer[k++] = state->bins[(column - 1) * width + row];
 
-    if (column < width - 1)
+    if (column < width - 1 && E < h)
         node_buffer[k++] = state->bins[(column + 1) * width + row];
 
     *mbins = k;
 }
-
-/* Get bins around the particle (pointers written to node_buffer) */
-/* void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins) { */
-/*     int i, j, width, row, column; */
-/*     float h, h2, h_lower, h_upper, v_lower, v_upper; */
-/*     float nw, ne, se, sw; */
-
-/*     h = state->h; */
-/*     h2 = h * h; */
-
-/*     for (i = j = 0; i < 4; ++i) */
-/*         node_buffer[i] = NULL; */
-
-/*     width = state->nbinwidth; */
-/*     row = floor((particle->x[1]) * width); */
-/*     column = floor((particle->x[0]) * width); */
-
-/*     /\* Add the bin containing the particle *\/ */
-/*     node_buffer[j++] = state->bins[column * width + row]; */
-
-/*     /\* Compute distances from the particle to the edges of containing bin *\/ */
-/*     v_lower = (particle->x[1]) - (row / width); */
-/*     v_upper = (row + 1) / width - (particle->x[1]); */
-/*     h_lower = (particle->x[0]) - (column / width); */
-/*     h_upper = (column + 1) / width - (particle->x[0]); */
-
-/*     /\* If vertical distances are less than h, add the bin above or below *\/ */
-/*     if (v_lower < h && row > 0) */
-/*         node_buffer[j++] = state->bins[column * width + row - 1]; */
-/*     else if (v_upper < h && row < (width - 1)) */
-/*         node_buffer[j++] = state->bins[column * width + row + 1]; */
-
-/*     /\* If the horizontal distances are less than h, add the bin to the left or right *\/ */
-/*     if (h_lower < h && column > 0) */
-/*         node_buffer[j++] = state->bins[(column - 1) * width + row]; */
-/*     else if (h_upper < h && column < (width - 1)) */
-/*         node_buffer[j++] = state->bins[(column + 1) * width + row]; */
-
-/*     /\* Compute the distances from the particle to the corners of the bin *\/ */
-/*     nw = SQ((column/width) - particle->x[0]) + SQ((row/width) - particle->x[1]); */
-/*     ne = SQ((column + 1)/width - particle->x[0]) + SQ((row/width) - particle->x[1]); */
-/*     se = SQ((column/width) - particle->x[0]) + SQ((row + 1)/width - particle->x[1]); */
-/*     sw = SQ((column + 1)/width - particle->x[0]) + SQ((row + 1)/width - particle->x[1]); */
-
-/*     /\* Add the NW and SE diagonal bins if the distances are less than h *\/ */
-/*     if (nw < h2 && column > 0 && row > 0) */
-/*         node_buffer[j++] = state->bins[(column - 1) * width + (row - 1)]; */
-/*     else if (se < h && column < (width - 1) && row < (width - 1)) */
-/*         node_buffer[j++] = state->bins[(column + 1) * width + (row + 1)]; */
-
-/*     /\* Do the same for the NE and NW bins *\/ */
-/*     if (ne < h2 && column < (width - 1) && row > 0) */
-/*         node_buffer[j++] = state->bins[(column + 1) * width + (row - 1)]; */
-/*     else if (sw < h2 && column > 0 && row < (width - 1)) */
-/*         node_buffer[j++] = state->bins[(column - 1) * width + (row + 1)]; */
-
-/*     /\* Number of bins added to the buffer is j *\/ */
-/*     *mbins = j; */
-
-/*     /\* Sanity check (not much left) *\/ */
-/*     assert(j <= 4); */
-/* } */
 
 void free_state(sim_state_t* s)
 {

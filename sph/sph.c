@@ -163,10 +163,10 @@ int main(int argc, char** argv)
     leapfrog_start(state, dt);
     check_state(state);
     for (int frame = 1; frame < nframes; ++frame) {
-        printf("Rendering frame %3d of %d.\n", frame, nframes);
+        /* printf("Rendering frame %3d of %d.\n", frame, nframes); */
         for (int i = 0; i < npframe; ++i) {
-            compute_accel(state, &params); /* check_state(state); printf("Compute_accel passed.\n"); */
-            leapfrog_step(state, dt); /* check_state(state); printf("Leapfrog_step passed.\n"); */
+            compute_accel(state, &params);
+            leapfrog_step(state, dt);
             check_state(state);
         }
         write_frame_data(fp, n, state->particles, NULL);

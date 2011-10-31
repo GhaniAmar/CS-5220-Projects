@@ -2,7 +2,7 @@ include Makefile.in
 
 .PHONY: all exe doc clean realclean
 
-exe: sph.x 
+exe: sph.x
 doc: main.pdf derivation.pdf
 all: exe doc
 
@@ -41,7 +41,7 @@ check_derivation.tex: check_derivation.m
 	pdflatex $<
 
 # =======
-view: 
+view:
 	java -jar ../jbouncy/Bouncy.jar run.out
 
 # =======
