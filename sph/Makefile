@@ -29,7 +29,7 @@ io_bin.o: io_bin.c
 # =======
 main.pdf: main.tex codes.tex
 derivation.pdf: derivation.tex check_derivation.te
-x
+
 codes.tex: params.h state.h interact.c leapfrog.c sph.c params.c io_bin.c
 	dsbweb -o $@ -c $^
 
