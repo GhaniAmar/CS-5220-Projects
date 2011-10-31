@@ -53,17 +53,17 @@ void compute_density(sim_state_t* s, sim_param_t* params)
 		particle_t* llist = s->bins[i];
 		while(llist) {
 			int mbins;
-			get_neighboring_bins(s, &(s->llist), node_buffer, &mbins);
+			get_neighboring_bins(s, llist, node_buffer, &mbins);
 
 			for (j = 0; j < mbins; ++j) {
 				curr = node_buffer[j];
 				while (curr) {
-					dx = sllist.x[0] - curr->x[0];
-					dy = llist.x[1] - curr->x[1];
+					dx = llist->x[0] - curr->x[0];
+					dy = llist->x[1] - curr->x[1];
 					r2 = dx*dx + dy*dy;
 					z = h2 - r2;
 					if (z > 0 && r2 != 0)
-						s->llist.rho += C*z*z*z;
+						llist->rho += C*z*z*z;
 
 					curr = curr->next;
 				}
@@ -152,11 +152,11 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
 				#pragma omp barrier
 			}
 		while(llist) {
-			const float rhoi = state->llist.rho;
-			x = state->llist.x[0];
-			y = state->llist.x[1];
+			const float rhoi = llist->rho;
+			x = llist->x[0];
+			y = llist->x[1];
 
-			get_neighboring_bins(state, &(state->llist), node_buffer, &mbins);
+			get_neighboring_future_bins(state, llist, node_buffer, &mbins);
 
 			for (j = 0; j < mbins; ++j) {
 				curr = node_buffer[j];
@@ -172,10 +172,12 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
 						float w0 = C0 * u/rhoi/rhoj;
 						float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
 						float wv = w0 * Cv;
-						float dvx = (state->llist.v[0]) - (curr -> v[0]);
-						float dvy = (state->llist.v[1]) - (curr -> v[1]);
-						state->llist.a[0] += (wp*dx + wv*dvx);
-						state->llist.a[1] += (wp*dy + wv*dvy);
+						float dvx = (llist->v[0]) - (curr -> v[0]);
+						float dvy = (llist->v[1]) - (curr -> v[1]);
+						llist->a[0] += (wp*dx + wv*dvx);
+						llist->a[1] += (wp*dy + wv*dvy);
+						curr->a[0] += (wp*dx + wv*dvx);
+						curr->a[1] += (wp*dy + wv*dvy);
 					}
 					curr = curr -> next;
 				}

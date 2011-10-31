@@ -43,6 +43,7 @@ void free_state(sim_state_t* s);
 void clear_bins(sim_state_t* state);
 void add_to_bin(sim_state_t* state, particle_t* particle);
 void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins);
+void get_neighboring_future_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins);
 void check_bins(sim_state_t* state);
 void bucket_sort(sim_state_t* state);
 

@@ -135,6 +135,49 @@ void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t**
     *mbins = k;
 }
 
+void get_neighboring_future_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins) {
+    int k, width, row, column;
+    float x, y, h, h2, binwidth, N, S, E, W, NW, NE, SE, SW;
+    k = 0;
+
+    x = particle -> x[0];
+    y = particle -> x[1];
+    h = state -> h;
+    h2 = SQ(h);
+    binwidth = 1/((float) state->nbinwidth);
+
+    width = state->nbinwidth;
+    column = (int) ((particle->x[0]) * width);
+    row = (int) ((particle->x[1]) * width);
+
+    N = y - row * binwidth;
+    S = (row + 1) * binwidth - y;
+    E = (column + 1) * binwidth - x;
+    W = x - column * binwidth;
+
+    node_buffer[k++] = state->bins[column * width + row];
+
+    if (row > 0 && N < h) {
+
+        NE = SQDIST(x, y, (column + 1) * binwidth, row * binwidth);
+        if (column < width - 1 && NE < h2)
+            node_buffer[k++] = state->bins[(column + 1) * width + (row - 1)];
+    }
+
+    if (row < width - 1 && S < h) {
+        node_buffer[k++] = state->bins[column * width + (row + 1)];
+
+        SE = SQDIST(x, y, (column + 1) * binwidth, (row + 1) * binwidth);
+        if (column < width - 1 && SE < h2)
+            node_buffer[k++] = state->bins[(column + 1) * width + (row + 1)];
+    }
+
+    if (column < width - 1 && E < h)
+        node_buffer[k++] = state->bins[(column + 1) * width + row];
+
+    *mbins = k;
+}
+
 /* Sort particle array to improve bin locality */
 void bucket_sort(sim_state_t* state) {
     int i, j;
