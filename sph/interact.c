@@ -25,13 +25,10 @@
 
 void compute_density(sim_state_t* s, sim_param_t* params)
 {
-    int i, j, k, parity, mbins;
+    int i, pass;
     const int n = s->n;
     const int nbinwidth = s -> nbinwidth;
-    particle_t* node_buffer[n];
-    particle_t *curr, *curr_bin;
 
-    float dx, dy, r2, z, rho_ij;
     const float h  = params->h;
     const float h2 = h*h;
     const float h8 = ( h2*h2 )*( h2*h2 );
@@ -46,9 +43,20 @@ void compute_density(sim_state_t* s, sim_param_t* params)
     check_bins(s);
     clear_flags(s);
 
-    /* Go through the even columns first, and then the odd ones  */
-    for (parity = 0; parity < 2; ++parity) {
-        for (i = parity; i < nbinwidth; i += 2) {
+    /* Our approach does every third column in parallel   */
+    /* Having two columns between each column makes it    */
+    /* so each thread does not step on any other thread's */
+    /* toes when updating its neighbors. We store a flag  */
+    /* with each particle to take advantage of symmetry.  */
+    for (pass = 0; pass < 3; ++pass) {
+
+        #pragma omp parallel for shared(s)
+        for (i = pass; i < nbinwidth; i += 3) {
+            particle_t *node_buffer[4];
+            particle_t *curr_bin, *curr;
+            int mbins, j, k;
+            float dx, dy, r2, z, rho_ij;
+
             for (j = 0; j < nbinwidth; ++j) {
                 curr_bin = s->bins[i * nbinwidth + j];
 
@@ -88,25 +96,6 @@ void compute_density(sim_state_t* s, sim_param_t* params)
             }
         }
     }
-
-    /* for (i = 0; i < n; ++i) { */
-    /*     s->particles[i].rho = 4 * s->mass / M_PI / h2; */
-    /*     get_neighboring_bins(s, &(s->particles[i]), node_buffer, &mbins); */
-
-    /*     for (j = 0; j < mbins; ++j) { */
-    /*         curr = node_buffer[j]; */
-    /*         while (curr) { */
-    /*             dx = s->particles[i].x[0] - curr->x[0]; */
-    /*             dy = s->particles[i].x[1] - curr->x[1]; */
-    /*             r2 = dx*dx + dy*dy; */
-    /*             z = h2 - r2; */
-    /*             if (z > 0 && r2 != 0) */
-    /*                 s->particles[i].rho += C*z*z*z; */
-
-    /*             curr = curr->next; */
-    /*         } */
-    /*     } */
-    /* } */
 }
 
 
@@ -128,14 +117,16 @@ void compute_density(sim_state_t* s, sim_param_t* params)
 void compute_accel(sim_state_t* state, sim_param_t* params)
 {
     // Unpack basic parameters
-    const float h    = params->h;
-    const float rho0 = params->rho0;
-    const float k    = params->k;
-    const float mu   = params->mu;
-    const float g    = params->g;
-    const float mass = state->mass;
-    const float h2   = h*h;
-    int i, j, mbins;
+    const float h       = params->h;
+    const float rho0    = params->rho0;
+    const float k       = params->k;
+    const float mu      = params->mu;
+    const float g       = params->g;
+    const float mass    = state->mass;
+    const float h2      = h*h;
+    const int nbinwidth = state->nbinwidth;
+
+    int i, pass;
 
     // Unpack system state
     int n = state->n;
@@ -154,37 +145,50 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     float Cp =  15*k;
     float Cv = -40*mu;
 
-    float x, y, dx, dy, r2;
-    particle_t* node_buffer[9];
-    particle_t* curr;
+    for (pass = 0; pass < 3; ++pass) {
 
-    for (i = 0; i < n; ++i) {
-        const float rhoi = state->particles[i].rho;
-        x = state->particles[i].x[0];
-        y = state->particles[i].x[1];
+        #pragma omp parallel for shared(state)
+        for (i = pass; i < nbinwidth; i += 3) {
+            float x, y, dx, dy, r2, rhoi, rhoj, q, u, w0, wp, wv, dvx, dvy;
+            particle_t *node_buffer[4];
+            particle_t *curr, *curr_bin;
+            int j, l, mbins;
 
-        get_neighboring_bins(state, &(state->particles[i]), node_buffer, &mbins);
+            for (j = 0; j < nbinwidth; ++j) {
+                curr_bin = state->bins[i * nbinwidth + j];
 
-        for (j = 0; j < mbins; ++j) {
-            curr = node_buffer[j];
-            while (curr) {
-                dx = x - (curr -> x[0]);
-                dy = y - (curr -> x[1]);
-                r2 = dx*dx + dy*dy;
+                while (curr_bin) {
+                    x = curr_bin->x[0];
+                    y = curr_bin->x[1];
+                    rhoi = curr_bin->rho;
+                    get_neighboring_bins(state, curr_bin, node_buffer, &mbins);
 
-                if (r2 > 0 && r2 < h2) {
-                    const float rhoj = curr -> rho;
-                    float q = sqrt(r2)/h;
-                    float u = 1 - q;
-                    float w0 = C0 * u/rhoi/rhoj;
-                    float wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
-                    float wv = w0 * Cv;
-                    float dvx = (state->particles[i].v[0]) - (curr -> v[0]);
-                    float dvy = (state->particles[i].v[1]) - (curr -> v[1]);
-                    state->particles[i].a[0] += (wp*dx + wv*dvx);
-                    state->particles[i].a[1] += (wp*dy + wv*dvy);
+                    for (l = 0; l < mbins; ++l) {
+                        curr = node_buffer[l];
+
+                        while(curr) {
+                            dx = x - curr->x[0];
+                            dy = y - curr->x[1];
+                            r2 = dx*dx + dy*dy;
+
+                            if (r2 > 0 && r2 < h2) {
+                                rhoj = curr->rho;
+                                q = sqrt(r2)/h;
+                                u = 1 - q;
+                                w0 = C0 * u/rhoi/rhoj;
+                                wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
+                                wv = w0 * Cv;
+                                dvx = (state->particles[i].v[0]) - (curr -> v[0]);
+                                dvy = (state->particles[i].v[1]) - (curr -> v[1]);
+                                curr_bin->a[0] += (wp*dx + wv*dvx);
+                                curr_bin->a[1] += (wp*dy + wv*dvy);
+                            }
+                            curr = curr->next;
+                        }
+                    }
+
+                    curr_bin = curr_bin->next;
                 }
-                curr = curr -> next;
             }
         }
     }
