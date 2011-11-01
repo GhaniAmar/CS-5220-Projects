@@ -25,17 +25,18 @@
 
 void compute_density(sim_state_t* s, sim_param_t* params)
 {
-    int i, j;
-    int n = s->n;
+    int i, j, mbins;
+    const int n = s->n;
     particle_t* node_buffer[n];
     particle_t* curr;
 
     float dx, dy, r2, z;
-    float h  = params->h;
-    float h2 = h*h;
-    float h8 = ( h2*h2 )*( h2*h2 );
-    float C  = 4 * s->mass / M_PI / h8;
+    const float h  = params->h;
+    const float h2 = h*h;
+    const float h8 = ( h2*h2 )*( h2*h2 );
+    const float C  = 4 * s->mass / M_PI / h8;
 
+    /* We do rebinning once per iteration here */
     clear_bins(s);
     for (i = 0; i < n; ++i) {
         add_to_bin(s, &(s->particles[i]));
@@ -44,7 +45,7 @@ void compute_density(sim_state_t* s, sim_param_t* params)
     check_bins(s);
 
     for (i = 0; i < n; ++i) {
-        int mbins;
+        s->particles[i].rho = 4 * s->mass / M_PI / h2;
         get_neighboring_bins(s, &(s->particles[i]), node_buffer, &mbins);
 
         for (j = 0; j < mbins; ++j) {
@@ -111,10 +112,6 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     float x, y, dx, dy, r2;
     particle_t* node_buffer[9];
     particle_t* curr;
-
-    clear_bins(state);
-    for (i = 0; i < n; ++i)
-        add_to_bin(state, &(state->particles[i]));
 
     for (i = 0; i < n; ++i) {
         const float rhoi = state->particles[i].rho;

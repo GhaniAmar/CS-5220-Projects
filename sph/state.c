@@ -3,6 +3,7 @@
 #include "math.h"
 #include <assert.h>
 #include <stdio.h>
+#include <omp.h>
 
 #define SQ(x) ((x) * (x))
 #define SQDIST(x1,y1,x2,y2) (((x1) - (x2)) * ((x1) - (x2)) + ((y1) - (y2)) * ((y1) - (y2)))
@@ -22,6 +23,7 @@ sim_state_t* alloc_state(int n, sim_param_t* params)
     s->particles   = (particle_t*) calloc(s->n, sizeof(particle_t));
     s->bins        = (particle_t**) calloc(s->nbins, sizeof(particle_t*));
 
+    #pragma omp parallel for shared(s) private(i) schedule(static)
     for (i = 0; i < n; ++i) {
         s->particles[i].rho   = 0;
         s->particles[i].x[0]  = s->particles[i].x[1] = 0;
@@ -66,19 +68,6 @@ void check_bins(sim_state_t* state) {
 
     assert(n == count);
 }
-
-/* Returns every particle as its own bin */
-/* void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins) { */
-/*     int i; */
-/*     int n = state->n; */
-
-/*     for (i = 0; i < n; ++i) { */
-/*         state->particles[i].next = NULL; */
-/*         node_buffer[i] = &(state->particles[i]); */
-/*     } */
-
-/*     *mbins = state->n; */
-/* } */
 
 void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins) {
     int k, width, row, column;
@@ -143,6 +132,8 @@ void bucket_sort(sim_state_t* state) {
 
     /* Put each particle into its proper bin */
     clear_bins(state);
+
+    #pragma omp parallel for shared(state) private(i) schedule(static)
     for (i = 0; i < state->n; ++i)
         add_to_bin(state, &(state->particles[i]));
 

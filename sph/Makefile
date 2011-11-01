@@ -56,3 +56,7 @@ clean:
 
 realclean: clean
 	rm -f main.pdf derivation.pdf *.x run.out
+
+run:
+	export OMP_NUM_THREADS=$(THREADS)
+	./sph.x $(FLAGS)

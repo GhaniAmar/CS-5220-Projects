@@ -60,8 +60,10 @@ void leapfrog_step(sim_state_t* s, double dt)
     const float YMIN = eps;
     const float YMAX = 1.0 - eps;
 
+    clear_bins(s);
+
     /* Manually inlined the reflect_bc code here to cut down the number of parallel sections */
-    #pragma omp parallel for shared(s)
+    #pragma omp parallel for shared(s) private(i) schedule(static)
     for (i = 0; i < n; ++i) {
         s->particles[i].vh[0] += s->particles[i].a[0] * dt;
         s->particles[i].vh[1] += s->particles[i].a[1] * dt;
@@ -89,13 +91,16 @@ void leapfrog_start(sim_state_t* s, double dt)
 {
     int i;
     int n = s->n;
+
     const float eps  = 1e-4;
     const float XMIN = eps;
     const float XMAX = 1.0 - eps;
     const float YMIN = eps;
     const float YMAX = 1.0 - eps;
 
-    #pragma omp parallel for shared(s)
+    clear_bins(s);
+
+    #pragma omp parallel for shared(s) private(i) schedule(static)
     for (i = 0; i < n; ++i) {
         s->particles[i].vh[0] = s->particles[i].v[0] + s->particles[i].a[0] * dt / 2;
         s->particles[i].vh[1] = s->particles[i].v[1] + s->particles[i].a[1] * dt / 2;
