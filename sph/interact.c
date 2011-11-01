@@ -133,6 +133,7 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
 
     // Compute density and color
     compute_density(state, params);
+    clear_flags(state);
 
     // Start with gravity and surface forces
     for (i = 0; i < n; ++i) {
@@ -147,9 +148,13 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
 
     for (pass = 0; pass < 3; ++pass) {
 
+        /* Used the same trick as compute_density here for parallelization */
+        /* We make three passes over the bins, doing every third bin in    */
+        /* parallel. This prevents any blocking between the threads, as    */
+        /* cannot access the same particle within a pass.                  */
         #pragma omp parallel for shared(state)
         for (i = pass; i < nbinwidth; i += 3) {
-            float x, y, dx, dy, r2, rhoi, rhoj, q, u, w0, wp, wv, dvx, dvy;
+            float x, y, dx, dy, r2, rhoi, rhoj, q, u, w0, wp, wv, dvx, dvy, fx, fy;
             particle_t *node_buffer[4];
             particle_t *curr, *curr_bin;
             int j, l, mbins;
@@ -158,6 +163,8 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
                 curr_bin = state->bins[i * nbinwidth + j];
 
                 while (curr_bin) {
+                    assert(!curr_bin->flag);
+
                     x = curr_bin->x[0];
                     y = curr_bin->x[1];
                     rhoi = curr_bin->rho;
@@ -167,26 +174,34 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
                         curr = node_buffer[l];
 
                         while(curr) {
-                            dx = x - curr->x[0];
-                            dy = y - curr->x[1];
-                            r2 = dx*dx + dy*dy;
+                            if (!curr->flag) {
+                                dx = x - curr->x[0];
+                                dy = y - curr->x[1];
+                                r2 = dx*dx + dy*dy;
 
-                            if (r2 > 0 && r2 < h2) {
-                                rhoj = curr->rho;
-                                q = sqrt(r2)/h;
-                                u = 1 - q;
-                                w0 = C0 * u/rhoi/rhoj;
-                                wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
-                                wv = w0 * Cv;
-                                dvx = (state->particles[i].v[0]) - (curr -> v[0]);
-                                dvy = (state->particles[i].v[1]) - (curr -> v[1]);
-                                curr_bin->a[0] += (wp*dx + wv*dvx);
-                                curr_bin->a[1] += (wp*dy + wv*dvy);
+                                if (r2 > 0 && r2 < h2) {
+                                    rhoj = curr->rho;
+                                    q = sqrt(r2)/h;
+                                    u = 1 - q;
+                                    w0 = C0 * u/rhoi/rhoj;
+                                    wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
+                                    wv = w0 * Cv;
+                                    dvx = (state->particles[i].v[0]) - (curr -> v[0]);
+                                    dvy = (state->particles[i].v[1]) - (curr -> v[1]);
+                                    fx = wp*dx + wv*dvx;
+                                    fy = wp*dy + wv*dvy;
+                                    curr_bin->a[0] += fx;
+                                    curr_bin->a[1] += fy;
+                                    curr->a[0]     -= fx;
+                                    curr->a[1]     -= fy;
+                                }
                             }
+
                             curr = curr->next;
                         }
                     }
 
+                    curr_bin->flag = 1;
                     curr_bin = curr_bin->next;
                 }
             }
