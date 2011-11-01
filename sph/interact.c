@@ -129,7 +129,7 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     int i, pass;
 
     // Unpack system state
-    int n = state->n;
+    const int n = state->n;
 
     // Compute density and color
     compute_density(state, params);
@@ -142,9 +142,9 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
     }
 
     // Constants for interaction term
-    float C0 = mass / M_PI / ( (h2)*(h2) );
-    float Cp =  15*k;
-    float Cv = -40*mu;
+    const float C0 = mass / M_PI / ( (h2)*(h2) );
+    const float Cp =  15*k;
+    const float Cv = -40*mu;
 
     for (pass = 0; pass < 3; ++pass) {
 
@@ -163,8 +163,6 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
                 curr_bin = state->bins[i * nbinwidth + j];
 
                 while (curr_bin) {
-                    assert(!curr_bin->flag);
-
                     x = curr_bin->x[0];
                     y = curr_bin->x[1];
                     rhoi = curr_bin->rho;

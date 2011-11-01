@@ -1,0 +1,7 @@
+Todo:
+
+* In interact, each parallel for is joining and forking the threads each pass.
+  With a little effort, we could use the same threads for each pass.
+* Squash subtle dissipation bug. Best approach to finding it would probably
+  be to substitute the old, serial version of each function in interact.c to see
+  which one causes it.
