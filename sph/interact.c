@@ -25,12 +25,13 @@
 
 void compute_density(sim_state_t* s, sim_param_t* params)
 {
-    int i, j, mbins;
+    int i, j, k, parity, mbins;
     const int n = s->n;
+    const int nbinwidth = s -> nbinwidth;
     particle_t* node_buffer[n];
-    particle_t* curr;
+    particle_t *curr, *curr_bin;
 
-    float dx, dy, r2, z;
+    float dx, dy, r2, z, rho_ij;
     const float h  = params->h;
     const float h2 = h*h;
     const float h8 = ( h2*h2 )*( h2*h2 );
@@ -43,25 +44,69 @@ void compute_density(sim_state_t* s, sim_param_t* params)
         s->particles[i].rho = 4 * s->mass / M_PI / h2;
     }
     check_bins(s);
+    clear_flags(s);
 
-    for (i = 0; i < n; ++i) {
-        s->particles[i].rho = 4 * s->mass / M_PI / h2;
-        get_neighboring_bins(s, &(s->particles[i]), node_buffer, &mbins);
+    /* Go through the even columns first, and then the odd ones  */
+    for (parity = 0; parity < 2; ++parity) {
+        for (i = parity; i < nbinwidth; i += 2) {
+            for (j = 0; j < nbinwidth; ++j) {
+                curr_bin = s->bins[i * nbinwidth + j];
 
-        for (j = 0; j < mbins; ++j) {
-            curr = node_buffer[j];
-            while (curr) {
-                dx = s->particles[i].x[0] - curr->x[0];
-                dy = s->particles[i].x[1] - curr->x[1];
-                r2 = dx*dx + dy*dy;
-                z = h2 - r2;
-                if (z > 0 && r2 != 0)
-                    s->particles[i].rho += C*z*z*z;
+                /* Go through each particle in the bin */
+                while (curr_bin) {
+                    get_neighboring_bins(s, curr_bin, node_buffer, &mbins);
 
-                curr = curr->next;
+                    /* Go through the bin's neighboring bins */
+                    for (k = 0; k < mbins; ++k) {
+                        curr = node_buffer[k];
+
+                        /* Go through the selected neighbor bin */
+                        while(curr) {
+
+                            /* If we've already seen the second particle, then */
+                            /* this particle pair has been done already        */
+                            if (!curr->flag) {
+                                dx = curr_bin->x[0] - curr->x[0];
+                                dy = curr_bin->x[1] - curr->x[1];
+                                r2 = dx*dx + dy*dy;
+                                z = h2 - r2;
+
+                                if (z > 0 && r2 != 0) {
+                                    rho_ij = C*z*z*z;
+                                    curr_bin->rho += rho_ij;
+                                    curr->rho     += rho_ij;
+                                }
+                            }
+
+                            curr = curr->next;
+                        }
+                    }
+
+                    curr_bin->flag = 1;
+                    curr_bin = curr_bin -> next;
+                }
             }
         }
     }
+
+    /* for (i = 0; i < n; ++i) { */
+    /*     s->particles[i].rho = 4 * s->mass / M_PI / h2; */
+    /*     get_neighboring_bins(s, &(s->particles[i]), node_buffer, &mbins); */
+
+    /*     for (j = 0; j < mbins; ++j) { */
+    /*         curr = node_buffer[j]; */
+    /*         while (curr) { */
+    /*             dx = s->particles[i].x[0] - curr->x[0]; */
+    /*             dy = s->particles[i].x[1] - curr->x[1]; */
+    /*             r2 = dx*dx + dy*dy; */
+    /*             z = h2 - r2; */
+    /*             if (z > 0 && r2 != 0) */
+    /*                 s->particles[i].rho += C*z*z*z; */
+
+    /*             curr = curr->next; */
+    /*         } */
+    /*     } */
+    /* } */
 }
 
 

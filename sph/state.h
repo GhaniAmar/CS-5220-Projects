@@ -18,12 +18,13 @@
  *@c*/
 
 typedef struct particle_t {
-    float rho;                  /* Density                */
-    float x[2];                 /* Positions              */
-    float vh[2];                /* Velocities (half step) */
-    float v[2];                 /* Velocities (full step) */
-    float a[2];                 /* Acceleration           */
-    struct particle_t *next;    /* Next particle in bin   */
+    float rho;                  /* Density                      */
+    float x[2];                 /* Positions                    */
+    float vh[2];                /* Velocities (half step)       */
+    float v[2];                 /* Velocities (full step)       */
+    float a[2];                 /* Acceleration                 */
+    int flag;                   /* Have you seen this particle? */
+    struct particle_t *next;    /* Next particle in bin         */
 } particle_t;
 
 typedef struct sim_state_t {
@@ -40,6 +41,7 @@ typedef struct sim_state_t {
 sim_state_t* alloc_state(int n, sim_param_t* params);
 void free_state(sim_state_t* s);
 
+void clear_flags(sim_state_t* state);
 void clear_bins(sim_state_t* state);
 void add_to_bin(sim_state_t* state, particle_t* particle);
 void get_neighboring_bins(sim_state_t* state, particle_t* particle, particle_t** node_buffer, int* mbins);
