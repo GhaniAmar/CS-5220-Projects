@@ -175,10 +175,11 @@ int main(int argc, char** argv)
         }
         write_frame_data(fp, n, state->particles, NULL);
 
-        if (frame % 50 == 0)
-            printf("Computing frame %d.\n", frame);
+/*         if (frame % 50 == 0) */
+/*             printf("Computing frame %d.\n", frame); */
     }
-    printf("Ran in %g seconds\n", omp_get_wtime() - start);
+/*     printf("Ran in %g seconds\n", omp_get_wtime() - start); */
+    printf("%g\n", omp_get_wtime() - start);
 
     fclose(fp);
     free_state(state);

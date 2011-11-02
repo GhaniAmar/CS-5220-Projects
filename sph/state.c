@@ -41,7 +41,7 @@ sim_state_t* alloc_state(int n, sim_param_t* params)
         }
     }
 
-    printf("Using %d threads with %d particles in %d bins.\n", nthreads, n, s->nbins);
+/*     printf("Using %d threads with %d particles in %d bins.\n", nthreads, n, s->nbins); */
 
     return s;
 }

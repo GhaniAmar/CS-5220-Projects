@@ -50,6 +50,7 @@ tgz: realclean
 
 clean:
 	rm -f *~ *.o
+	rm -f *.qsub.o*
 	rm -f codes.tex check_derivation.tex
 	rm -f main.log main.aux main.out main.toc
 	rm -f derivation.log derivation.aux derivation.out
