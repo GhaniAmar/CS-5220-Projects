@@ -162,15 +162,15 @@ int main(int argc, char** argv)
     write_frame_data(fp, n, state->particles, NULL);
     compute_accel(state, &params);
     leapfrog_start(state, dt);
-    check_state(state);
+
     for (int frame = 1; frame < nframes; ++frame) {
         for (int i = 0; i < npframe; ++i) {
             compute_accel(state, &params);
             leapfrog_step(state, dt);
-            check_state(state);
             counter++;
 
-            if (counter + 1 % 200 == 0)
+            /* Bucket sort the particles every 200 iterations to improve bin locality */
+            if (counter % 200 == 0)
                 bucket_sort(state);
         }
         write_frame_data(fp, n, state->particles, NULL);
