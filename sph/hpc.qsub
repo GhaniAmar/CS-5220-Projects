@@ -6,5 +6,5 @@
 #
 
 export OMP_NUM_THREADS=8
-./sph.x -s 5e-2 > execution5.out
+/share/apps/local/hpctoolkit/bin/hpcrun -e WALLCLOCK@5000 ./sph.x -s 1e-2
 exit 0
