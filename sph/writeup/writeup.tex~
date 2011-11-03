@@ -1,0 +1,205 @@
+\documentclass[12pt]{article}
+\usepackage[left=1in,right=1in,top=1in,bottom=1in]{geometry}
+\usepackage{enumerate}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{enumerate}
+\usepackage{url}
+\usepackage{color}
+\usepackage{listings}
+\usepackage{wasysym}
+\usepackage{tikz}
+\usetikzlibrary{matrix,arrows}
+
+\def\class{CS 5220}
+\def\date{9/26/2011}
+\def\prof{Professor Bindel}
+\def\name{tbe4, dsj36}
+\def\title{Project \#1: Matrix Multiply}
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{\class\\\name}
+\rhead{\title\\\date}
+
+\newtheorem{lemma}{Lemma}
+\def\R{\mathbb{R}}
+\def\F{\mathbb{F}}
+\def\C{\mathbb{C}}
+\def\N{\mathbb{N}}
+\def\Q{\mathbb{Q}}
+\def\Z{\mathbb{Z}}
+\def\C{\mathbb{C}}
+\def\a{\alpha}
+\def\b{\beta}
+\def\d{\delta}
+\def\e{\varepsilon}
+\def\w{\omega}
+\def\Span{\text{Span}}
+\def\char{\text{char}}
+\def\im{\text{im}}
+\def\Hom{\text{Hom}}
+\def\deg{\text{deg}}
+
+\newcommand{\hwproblem}[2]{
+\vspace{1em} \noindent{\bf #1} #2} % \vspace{1em}}
+\newcommand{\hwheading}{
+\thispagestyle{empty} \noindent
+   \begin{center}
+   \framebox{
+      \vbox{
+    \hbox to 5.78in { \large {\bf \class}
+         \hfill \date }
+       \vspace{4mm}
+       \hbox to 5.78in { {\Large \hfill \title  \hfill} }
+       \vspace{2mm}
+       \hbox to 5.78in { \large {\it \prof \hfill \name} }
+      }
+   }
+   \end{center}
+}
+\newcommand{\hwsolution}[1]{\vspace{1em} \noindent {\emph{#1.}}}
+
+\lstset{
+  basicstyle=\footnotesize,
+  language=C,
+  frame=single
+}
+
+\begin{document} \hwheading
+
+\subsection*{Introduction} Given three matrices $A$, $B$, $C$ of double
+precision floating point numbers, we aimed to design an efficient method of
+computing $C' = C + A * B$ for various sizes of matrices. Designing a matrix
+multiply that was efficient on small matrices was straightforward, but creating
+a solution that scaled well with large matrices required an intimate knowledge
+of our platform's memory.
+
+\subsection*{First Attempt} Our first attempt at designing such an algorithm
+took a bottom-up approach, starting with the blocked example given as a
+base. Recall that matrix multiply is defined in terms of nested iterators, where
+each element of the original matrix requires a sum over a row and column:
+\begin{equation*} C'_{ij} = C_{ij} + \sum_{k=1}^N + A_{ik} B_{kj}
+\end{equation*} Our first change was to transpose the $A$ matrix in memory,
+storing it in \emph{row-major} order rather than column-major order. We
+heap-allocated enough memory to store a duplicate of $A$ and then copied it in
+with the alternate order. Changing the memory layout then made this sum stride
+through memory in unit increments rather than jumping over columns, decreasing
+the number of cache misses.  This simple change gave us about 1400 Mflops/s. The
+next step was to change the $16 \times 16$ naive code to call a quick $2 \times
+2$ SSE function that took advantage of the registers, which could hold 2 values
+at a time. The 2x2 function would call the quick matrix-vector SSE multiply
+function provided on the assignment page. However, since our data needed to be
+zero-padded and stored into fast memory, there was a lot of code between getting
+a 16x16 block and solving each matrix-vector multiply. As a result, our code
+efficiency dropped to about 300 Mflops/s at all input sizes.  At this point we
+restarted and adopted a top-down approach, progressively getting smaller and
+smaller blocking schemes working.
+
+\subsection*{Copy Optimizations} We first began by defining two block sizes, one
+to fit in L1 cache and one to fit in L2 cache.  Our code allocates space in the
+global segment to hold three L1 blocks and three L2 block to act as a buffer for
+the data that would be constantly accessed.  We chose to store all of our
+matrices in column-major order, as doing so allowed us to expose columns
+directly to the SSE $2 \times 2$ kernel, avoiding the copying overhead that
+plagued our earlier attempts. Upon loading a block of the matrix into the L2
+block, we pad the edges with zeros, which allows the lower levels of the code to
+specialize in only square matrix multplication. Note that this requires that the
+L1 block size divide the L2 block and the SSE block size divide the L1 block
+size.  When allocating the L1 blocks, we took care to align the data on 16 bit
+boundaries, as the SSE kernel required aligned data.
+
+\subsection*{Block Sizes} The cluster's CPUs have 32 KB of L1 cache and 256 KB
+of L2 cache, which correspond to 4096 and 32768 double precision floating point
+numbers, respectively. If we want to fit 3 blocks in each cache, our L1 block
+width should be no more than $\sqrt{4096/3} \approx 37$, and our L2 block width
+should be no more than $\sqrt{32768/3} \approx 104$.  Recall from the previous
+section that we need our L1 cache width to be a multiple of 2, and we need the
+L2 width to be a multiple of the L1 cache width. Therefore, our first attempt
+used 16 and 64 size blocks. This led to conflict misses, as we did not change
+one of the matrices to row order, yielding a power of two stride. This access
+pattern caused all of the entries to be mapped to the same location in cache,
+evicting the previous element that we wished to keep. Therefore, we changed our
+block size to 30 and 90, both of which have few powers of two.
+
+\subsection*{Low-Level Optimizations} Since we padded appropriately from the
+beginning, our $2 \times 2$ matrix multiply procedure does not have to handle
+any fringe cases. We modified the given \verb=matvec2by2= code to take in the
+columns for the $A$ matrix independently, allowing us to simply point it to the
+appropriate locations in the L1 block. This matrix-vector multiply was then
+called twice with the same $A$ but with a different column to perform the $2
+\times 2$ matrix multiply, which was our smallest block size.
+
+\subsection*{Compiler Flags} We used the traditional \texttt{-03},
+\texttt{-ffast-math}, \texttt{-std=gnu99}, and \texttt{-ftree-vectorize} as
+recommended. We found that using \texttt{-funroll-all-loops} was too aggressive
+and actually made our code slower. Therefore, we used \texttt{-funroll-loops}
+instead. We got some ideas for flags from a group that had done a similar
+assignment (at Berkeley, hmm...)  whose their URL is left in a comment in the
+code. They suggested using \texttt{-fstrength-reduce},
+\texttt{-fschedule-insns}, and \texttt{-malign-double}. One surprising bug we
+found was for the \texttt{-march} and \texttt{-mtune} flags. After poking around
+on the internet, the version of GCC we were using had a bug that did not
+recognize the \texttt{corei7} option for these flags. Therefore, we defaulted to
+\texttt{-march=native} and \texttt{-mtune=native}.
+
+\subsection*{Loop Reordering} We used a systematic approach for deciding on the
+loop ordering for each matrix multiply. For each pointer arithmetic operation
+within the inner loop, we marked the stride in each index $i$, $j$, and $k$. The
+index with the biggest strides should go on the outside, while index variables
+that more or less have good access patterns should be on the inside. For example,
+for the L1 block multiply, we had to call the SSE multiply on the
+smaller blocks.
+
+\begin{lstlisting}
+for (k = 0; i < n_blocks; ++k) {
+  for (j = 0; j < n_blocks; ++j) {
+    for (i = 0; k < n_blocks; ++i) {
+      matvec2by2(A_L1_block + 2 * k * L1_BLOCK_SIZE + 2 * i,
+        A_L1_block + (2 * k + 1) * L1_BLOCK_SIZE + 2 * i,
+        B_L1_block + 2 * j * L1_BLOCK_SIZE + 2 * k,
+        C_L1_block + 2 * j * L1_BLOCK_SIZE + 2 * i);
+      matvec2by2(A_L1_block + 2 * k * L1_BLOCK_SIZE + 2 * i,
+        A_L1_block + (2 * k + 1) * L1_BLOCK_SIZE + 2 * i,
+        B_L1_block + (2 * j + 1) * L1_BLOCK_SIZE + 2 * k,
+        C_L1_block + (2 * j + 1) * L1_BLOCK_SIZE + 2 * i);
+    }
+  }
+}
+\end{lstlisting}
+
+\noindent In the first argument to the first call, $i$ is moved in steps of 2,
+$j$ is not used at all, and $k$ is moved in steps of $2$ times
+\texttt{L1\_BLOCK\_SIZE}.  If we repeat this analysis on all the calls, we have
+the following table.
+
+\begin{tabular}[h!]{lllll} & 1st argument & 2nd argument & 3rd argument & 4th
+argument \\ $i$ & 2 & 2 & 0 & 2 \\ $j$ & 0 & 0 & 2 \texttt{L1\_BLOCK\_SIZE} & 2
+\texttt{L1\_BLOCK\_SIZE} \\ $k$ & 2 \texttt{L1\_BLOCK\_SIZE} & 2
+\texttt{L1\_BLOCK\_SIZE} & 2 & 0
+\end{tabular}
+
+\noindent\\ Note that $i$ does the least work, then $j$, and then finally
+$k$. Therefore, a good loop order would be $k \rightarrow j \rightarrow i$ for
+this loop. By using a similar idea on the other blocked matrix multiplies, we
+determined that the best loop order for the other procedures was $j \rightarrow
+i \rightarrow k$.
+
+\subsection*{Performance Results}
+
+\begin{figure}[h!]  \centering
+  \includegraphics[scale=0.30]{perf.png}
+\end{figure}
+
+\noindent Our choice of block size and copy optimizations alleviated the severe
+dips near multiples of powers of two exhibited in the naive code. Our blocked
+code with whole matrix copy optimization did better at smoothing out the
+performance, but did not do particularly well on average. Our final approach
+enjoyed significantly better speeds, as it was able to constructively use the
+SSE units for its smallest multiplications.
+\end{document}
