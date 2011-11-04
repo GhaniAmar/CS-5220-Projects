@@ -184,8 +184,6 @@ void compute_accel(sim_state_t* state, sim_param_t* params)
                                     w0 = C0 * u/rhoi/rhoj;
                                     wp = w0 * Cp * (rhoi+rhoj-2*rho0) * u/q;
                                     wv = w0 * Cv;
-                                    /* dvx = (state->particles[i].v[0]) - (curr -> v[0]); */
-                                    /* dvy = (state->particles[i].v[1]) - (curr -> v[1]); */
                                     dvx = curr_bin->v[0] - curr->v[0];
                                     dvy = curr_bin->v[1] - curr->v[1];
                                     fx = wp*dx + wv*dvx;

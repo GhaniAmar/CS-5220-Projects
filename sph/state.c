@@ -23,23 +23,13 @@ sim_state_t* alloc_state(int n, sim_param_t* params)
     s->particles   = (particle_t*) calloc(s->n, sizeof(particle_t));
     s->bins        = (particle_t**) calloc(s->nbins, sizeof(particle_t*));
 
-/*     #pragma omp parallel shared(s) */
-/*     { */
-/*         #pragma omp single */
-/*         { */
-/*             nthreads = omp_get_num_threads(); */
-/*         } */
-/*         #pragma omp for schedule(static) */
-/*         for (i = 0; i < n; ++i) { */
-/*             s->particles[i].rho   = 0; */
-/*             s->particles[i].x[0]  = s->particles[i].x[1] = 0; */
-/*             s->particles[i].vh[0] = s->particles[i].vh[1] = 0; */
-/*             s->particles[i].v[0]  = s->particles[i].v[1] = 0; */
-/*             s->particles[i].a[0]  = s->particles[i].a[1] = 0; */
-/*             s->particles[i].flag  = 0; */
-/*             s->particles[i].next  = NULL; */
-/*         } */
-/*     } */
+    #pragma omp parallel shared(s)
+    {
+        #pragma omp single
+        {
+            nthreads = omp_get_num_threads();
+        }
+    }
 
     for (i = 0; i < n; ++i) {
       s->particles[i].rho   = 0;
@@ -51,11 +41,7 @@ sim_state_t* alloc_state(int n, sim_param_t* params)
       s->particles[i].next  = NULL;
     }
 
-    nthreads = 8;
-
     printf("Using %d threads with %d particles in %d bins.\n", nthreads, n, s->nbins);
-
-    
 
     return s;
 }

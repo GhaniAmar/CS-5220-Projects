@@ -134,6 +134,16 @@ adding the contributions of particles that are within $h$ of our
 fixed particle. We use this optimization in the {\tt compute\_density}
 and {\tt compute\_accel} functions.
 
+\ind Although our approach described so far improves the quadratic
+brute force search, following the next pointers in each bin's
+linked list may cause our simulation to have very poor cache
+locality. This poor cache performance is due to there being no
+inherent relationship between a particle's place in the state structure's
+particle array and its bin. Thus, we sort the particles every
+200 iterations to move particles in the same bin close to each
+other in memory. As suggested, we used a linear time bucket
+sort to rearrange the particles.
+
 \subsection*{Parallelization and Symmetry}
 After adding binning to our simulation, we next turned our focus to
 parallelizing the codes. Parallelizing the leapfrog integrator was
@@ -147,6 +157,10 @@ of work done. The density and acceleration contributions from particle
 $i$ to particle $j$ are identically the contributions from particle
 $j$ to particle $i$. Therefore, we may update them both in
 one step, halving the number of particle pairs we need to consider.
+To make sure we do not update a pair twice, we simply keep a flag
+on each particle indicating whether it has been seen already. If
+the second particle in a potential interaction has been seen
+already, the pair has already been computed.
 
 \ind Parallelizing this idea is not immediately straightforward,
 as expected. Our idea is split the columns of bins evenly among
