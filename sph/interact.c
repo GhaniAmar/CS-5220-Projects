@@ -40,7 +40,6 @@ void compute_density(sim_state_t* s, sim_param_t* params)
         add_to_bin(s, &(s->particles[i]));
         s->particles[i].rho = 4 * s->mass / M_PI / h2;
     }
-    check_bins(s);
     clear_flags(s);
 
     /* Our approach does every third column in parallel   */

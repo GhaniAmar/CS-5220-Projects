@@ -162,24 +162,20 @@ int main(int argc, char** argv)
     write_frame_data(fp, n, state->particles, NULL);
     compute_accel(state, &params);
     leapfrog_start(state, dt);
-    check_state(state);
+
     for (int frame = 1; frame < nframes; ++frame) {
         for (int i = 0; i < npframe; ++i) {
             compute_accel(state, &params);
             leapfrog_step(state, dt);
-            check_state(state);
             counter++;
 
-            if (counter + 1 % 200 == 0)
+            if (counter + 1 % 2000 == 0)
                 bucket_sort(state);
         }
         write_frame_data(fp, n, state->particles, NULL);
 
-/*         if (frame % 50 == 0) */
-/*             printf("Computing frame %d.\n", frame); */
     }
     printf("Ran in %g seconds\n", omp_get_wtime() - start);
-/*     printf("%g\n", omp_get_wtime() - start); */
 
     fclose(fp);
     free_state(state);
