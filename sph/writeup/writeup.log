@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2011.11.3)  3 NOV 2011 18:23
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2011.11.3)  6 NOV 2011 17:16
 entering extended mode
  %&-line parsing enabled.
 **\input writeup.tex
@@ -561,25 +561,35 @@ Package Fancyhdr Warning: \headheight is too small (12.0pt):
  We now make it that large for the rest of the document.
  This may cause the page layout to be inconsistent, however.
 
-[2] [3] (./writeup.aux) ) 
+[2] <bin_speedup.pdf, id=18, 578.16pt x 433.62pt>
+File: bin_speedup.pdf Graphic file (type pdf)
+ <use bin_speedup.pdf>
+[3 <./bin_speedup.pdf>] <parallel_speedup.pdf, id=33, 578.16pt x 433.62pt>
+File: parallel_speedup.pdf Graphic file (type pdf)
+
+<use parallel_speedup.pdf> [4 <./parallel_speedup.pdf>]
+<threads_speedup.pdf, id=44, 578.16pt x 433.62pt>
+File: threads_speedup.pdf Graphic file (type pdf)
+ <use threads_speedup.pdf>
+[5 <./threads_speedup.pdf>] (./writeup.aux) ) 
 Here is how much of TeX's memory you used:
- 12440 strings out of 495061
- 222506 string characters out of 1182621
+ 12455 strings out of 495061
+ 222833 string characters out of 1182621
  297315 words of memory out of 3000000
- 15364 multiletter control sequences out of 15000+50000
+ 15376 multiletter control sequences out of 15000+50000
  10346 words of font info for 40 fonts, out of 3000000 for 9000
  28 hyphenation exceptions out of 8191
  56i,11n,55p,434b,219s stack positions out of 5000i,500n,10000p,200000b,50000s
-</usr/share/texmf-texlive/fonts/type1/public/amsfonts/
-cm/cmbx12.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmmi12.p
-fb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/sha
-re/texmf-texlive/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texmf-tex
-live/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texmf-texlive/fonts/ty
-pe1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf-texlive/fonts/type1/public/
-amsfonts/cm/cmtt12.pfb>
-Output written on writeup.pdf (3 pages, 85616 bytes).
+</usr/share/texmf-texlive/fonts/ty
+pe1/public/amsfonts/cm/cmbx12.pfb></usr/share/texmf-texlive/fonts/type1/public/
+amsfonts/cm/cmmi12.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm
+/cmr12.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmr17.pfb><
+/usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/te
+xmf-texlive/fonts/type1/public/amsfonts/cm/cmti12.pfb></usr/share/texmf-texlive
+/fonts/type1/public/amsfonts/cm/cmtt12.pfb>
+Output written on writeup.pdf (5 pages, 134630 bytes).
 PDF statistics:
- 43 PDF objects out of 1000 (max. 8388607)
+ 75 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
- 13 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 28 words of extra memory for PDF output out of 10000 (max. 10000000)
 

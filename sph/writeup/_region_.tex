@@ -1,4 +1,4 @@
-\documentclass[12pt]{article}
+\message{ !name(writeup.tex)}\documentclass[12pt]{article}
 \usepackage[left=1in,right=1in,top=1in,bottom=1in]{geometry}
 \usepackage{enumerate}
 \usepackage{graphicx}
@@ -74,6 +74,9 @@
 \def\ind{\vspace{0.75em}\noindent}
 
 \begin{document} \hwheading
+
+\message{ !name(writeup.tex) !offset(-3) }
+ \hwheading
 
 \subsection*{Introduction}
 Our project involved optimizing a smoothed particle hydrodynamics
@@ -182,47 +185,11 @@ changed from quadratic to linear.
 
 \begin{figure}[h!]
   \centering
-  \includegraphics[scale=0.7]{bin_speedup.pdf}
+  \includegraphics[scale=0.5]{bin_speedup.pdf}
 \end{figure}
 
-\pagebreak
-\noindent
-We collected data comparing our parallelized version running with eight
-threads with the binned serial version.
 
-\begin{figure}[h!]
-  \centering
-  \includegraphics[scale=0.7]{parallel_speedup.pdf}
-\end{figure}
-
-\noindent After fitting both data sets linearly and comparing the slopes, the 8
-thread version is 5 times faster than the binned serial version. We
-conducted a third experiment where we fixed the number of particles
-and varied the thread count.
-
-\pagebreak
-
-\begin{figure}[h!]
-  \centering
-  \includegraphics[scale=0.7]{threads_speedup.pdf}
-\end{figure}
-
-\noindent The marginal benefit of adding threads decreases as we add more
-threads, as evidenced by the increasing slope of the previous plot. Since
-we fixed the amount of work here, there is less parallel work to be done
-per thread as we increase their number, so more time is spent, proportionally,
-in the serial sections. Furthermore, given our patterns for {\tt compute\_accel}
-and {\tt compute\_density}, each pass does a third of columns. Since each thread
-owns a column entirely, there may not be enough columns in each pass to go around,
-so threads will be sitting doing nothing.
-
-\vspace{1em} \noindent We used the HPCToolkit profiler to try to find any significant
-bottlenecks in our code. Using the {\tt WALLCLOCK} event, we found that
-parallelizing the state allocation, the particle bin insertions, and the
-bin array allocation were not worth the time. However, HPCToolkit
-seemed to be a bit finicky on the cluster, as trying other events caused
-our code to run for a long time and then segfault. In some cases, it returned
-bogus results, such as eighty percent of the time being spent in
-{\tt alloc\_state}, which it claimed was called tens of thousands of times.
 
 \end{document}
+
+\message{ !name(writeup.tex) !offset(-195) }
