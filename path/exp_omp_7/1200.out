@@ -1,0 +1,6 @@
+== OpenMP with 7 threads
+n:         1200
+p:         0.05
+squares:   3
+Time:      26.6052
+Check:     857C

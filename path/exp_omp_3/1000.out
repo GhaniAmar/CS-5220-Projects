@@ -1,0 +1,6 @@
+== OpenMP with 3 threads
+n:         1000
+p:         0.05
+squares:   3
+Time:      31.2638
+Check:     CC6A

@@ -1,0 +1,6 @@
+== OpenMP with 2 threads
+n:         600
+p:         0.05
+squares:   3
+Time:      1.03274
+Check:     5FD6
