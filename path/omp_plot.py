@@ -38,8 +38,17 @@ def plot_folder(path, labels):
 def make_plot(labels, outpath):
     xlabel(texify('Number of Graph Nodes'), fontsize=14)
     ylabel(texify('Time elapsed'), fontsize=14)
-    title(texify('Floyd-Warshall OpenMP Speedup Plots'), fontsize=18)
-    legend(tuple(labels))
+    title(texify('Floyd-Warshall OpenMP Weak Scaling'), fontsize=18)
+    legend(tuple(labels), loc=2)
+    grid(True)
+    savefig(outpath, transparent=True)
+
+def strong_plot(outpath, x, y):
+    plot(x, y)
+
+    xlabel(texify('Number of Threads'), fontsize=14)
+    ylabel(texify('Time elapsed'), fontsize=14)
+    title(texify('Floyd-Warshall OpenMP Strong Scaling'), fontsize=18)
     grid(True)
     savefig(outpath, transparent=True)
 
@@ -49,11 +58,23 @@ def texify(string):
 if __name__ == '__main__':
     labels = []
 
-    if len(sys.argv) < 3:
-        print 'Arguments, please: folder1 folder2 ... outpath'
-    else:
-        for exp in sys.argv[1:-1]:
+    if len(sys.argv) < 4:
+        print 'Arguments, please: [weak|strong] folder1 folder2 ... outpath'
+    elif sys.argv[1] == 'weak':
+        for exp in sys.argv[2:-1]:
             plot_folder(exp, labels)
 
         make_plot(labels, sys.argv[-1])
+    elif sys.argv[1] == 'strong':
+        data = []
+        for exp in sys.argv[2:-1]:
+            _, y = read_folder(exp)
+            threads = int(exp[-1])
+            time = y[-1]
 
+            data.append((threads, time))
+
+        data.sort(key = lambda x : x[0])
+        x, y = zip(*data)
+
+        strong_plot(sys.argv[-1], x, y)

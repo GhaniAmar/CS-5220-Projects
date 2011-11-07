@@ -24,6 +24,12 @@ path-mpi.o: path-mpi.c
 %.o: %.c
 	$(CC) -c $(CFLAGS) $<
 
+# == Plots
+OMPRESULTS = exp_omp_1 exp_omp_4 exp_omp_8
+
+omp_plots:
+	python omp_plot.py strong $(OMPRESULTS) omp_strong.pdf
+	python omp_plot.py weak $(OMPRESULTS) omp_weak.pdf
 
 # === Documentation
 
