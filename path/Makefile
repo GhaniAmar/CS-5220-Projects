@@ -13,16 +13,16 @@ path-omp.x: path-omp.o mt19937p.o
 	$(CC) -fopenmp $(CFLAGS) $^ -o $@
 
 path-omp.o: path-omp.c
-	$(CC) -c -fopenmp $(CFLAGS) $< 
+	$(CC) -c -fopenmp $(CFLAGS) $<
 
 path-mpi.x: path-mpi.o mt19937p.o
 	$(MPICC) $(CFLAGS) $^ -o $@
 
 path-mpi.o: path-mpi.c
-	$(MPICC) -c $(CFLAGS) $< 
+	$(MPICC) -c $(CFLAGS) $<
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $< 
+	$(CC) -c $(CFLAGS) $<
 
 
 # === Documentation
@@ -44,7 +44,7 @@ clean:
 	rm -f main.aux main.log main.out
 
 realclean: clean
-	rm -f path-omp.x path-mpi.x path-omp.tex main.pdf *.*~
+	rm -f path-omp.x path-mpi.x path-omp.tex main.pdf *.*~ run_omp*.qsub*
 
 tgz:
 	( cd ..; tar -czf path.tgz \
