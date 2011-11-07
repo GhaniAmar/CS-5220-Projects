@@ -1,0 +1,58 @@
+\documentclass[10pt, leqno]{article} %% use to set typesize 
+\usepackage{amsfonts, amsmath}
+\usepackage{fancyhdr}
+\usepackage[
+  letterpaper=true,
+  colorlinks=true,
+  linkcolor=red,
+  citecolor=red,
+  pdfpagemode=None]{hyperref}
+\usepackage{graphicx}
+\usepackage{color}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{listings}
+
+\newcommand{\bbR}{\mathbb{R}}
+\newcommand{\bfr}{\mathbf{r}}
+\newcommand{\bfv}{\mathbf{v}}
+\newcommand{\bfa}{\mathbf{a}}
+\newcommand{\bff}{\mathbf{f}}
+\newcommand{\bfg}{\mathbf{g}}
+\newcommand{\Wps}{W_{\mathrm{poly6}}}
+\newcommand{\Wsp}{W_{\mathrm{spiky}}}
+\newcommand{\Wvi}{W_{\mathrm{viscosity}}}
+
+\newcommand{\matlab}{\textsc{Matlab}}
+
+\lstset{language=c,columns=flexible}
+
+\title{Parallel All-Pairs Shortest Paths}
+
+\begin{document}
+
+\pagestyle{fancy}
+\lhead{Bindel, Fall 2011}
+\rhead{Applications of Parallel Computers (CS 5220)}
+\fancyfoot{}
+
+\maketitle
+
+In 
+\href{http://www.cs.cornell.edu/~bindel/class/cs5220-f11/slides/lec15.pdf}%
+{lecture 15}, 
+we briefly discussed the Floyd-Warshall algorithm for computing all
+pairwise shortest path lengths in a graph.  As we noted then, the
+computational pattern for Floyd-Warshall is much like the
+computational pattern for Gaussian elimination.  There is a closely
+related algorithm which is slightly more expensive -- $O(n^3 \log n)$
+time in general rather than the $O(n^3)$ time required by
+Floyd-Warshall -- but which looks very much like matrix
+multiplication.  In this assignment, you will analyze the performance
+of a reference OpenMP implementation of this method, and then
+implement and analyze your own version using MPI.
+
+\input{path-omp.tex}
+
+\end{document}
