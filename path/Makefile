@@ -40,11 +40,11 @@ path-omp.tex: path-omp.c
 # === Cleanup and tarball
 
 clean:
-	rm -f *.o 
+	rm -f *.o
 	rm -f main.aux main.log main.out
 
 realclean: clean
-	rm -f path-omp.x path-mpi.x path-omp.tex main.pdf
+	rm -f path-omp.x path-mpi.x path-omp.tex main.pdf *.*~
 
 tgz:
 	( cd ..; tar -czf path.tgz \

@@ -41,7 +41,6 @@ int square(int n,               // Number of nodes
            int* restrict lnew)  // Partial distance at step s+1
 {
     int done = 1;
-    #pragma omp parallel for shared(l, lnew) reduction(&& : done)
     for (int j = 0; j < n; ++j) {
         for (int i = 0; i < n; ++i) {
             int lij = lnew[j*n+i];
@@ -99,7 +98,7 @@ static inline void deinfinitize(int n, int* l)
  * by only repeatedly squaring until two successive matrices are the
  * same (as indicated by the return value of the [[square]] routine).
  *@c*/
-void shortest_paths(int n, int* restrict l, int* iterations)
+void shortest_paths(int n, int* restrict l)
 {
     // Generate l_{ij}^0 from adjacency matrix representation
     infinitize(n, l);
@@ -112,7 +111,6 @@ void shortest_paths(int n, int* restrict l, int* iterations)
     for (int done = 0; !done; ) {
         done = square(n, l, lnew);
         memcpy(l, lnew, n*n * sizeof(int));
-        (*iterations)++;
     }
     free(lnew);
     deinfinitize(n, l);
@@ -200,7 +198,6 @@ int main(int argc, char** argv)
 {
     int n    = 200;            // Number of nodes
     double p = 0.05;           // Edge probability
-    int iter = 0;              // Number of squarings needed
     const char* ifname = NULL; // Adjacency matrix file name
     const char* ofname = NULL; // Distance matrix file name
 
@@ -225,17 +222,7 @@ int main(int argc, char** argv)
     if (ifname)
         write_matrix(ifname,  n, l);
 
-    // Time the shortest paths code
-    double t0 = omp_get_wtime();
-    shortest_paths(n, l, &iter);
-    double t1 = omp_get_wtime();
-
-    printf("== OpenMP with %d threads\n", omp_get_max_threads());
-    printf("n:         %d\n", n);
-    printf("p:         %g\n", p);
-    printf("squares:   %d\n", iter);
-    printf("Time:      %g\n", t1-t0);
-    printf("Check:     %X\n", fletcher16(l, n*n));
+    shortest_paths(n, l);
 
     // Generate output file
     if (ofname)
