@@ -44,7 +44,7 @@ clean:
 	rm -f main.aux main.log main.out
 
 realclean: clean
-	rm -f path-omp.x path-mpi.x path-omp.tex main.pdf *.*~ run_omp*.qsub*
+	rm -f path-omp.x path-mpi.x path-omp.tex main.pdf *.*~ run_omp*.qsub* *.pyc
 
 tgz:
 	( cd ..; tar -czf path.tgz \
