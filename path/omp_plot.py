@@ -6,7 +6,7 @@ from matplotlib.pyplot import figure, axes, semilogx, plot, xlabel, ylabel, titl
 
 rc('text', usetex=True)
 
-plotter = semilogy
+plotter = loglog
 
 def read_file(path):
     handle = open(path, 'r')
