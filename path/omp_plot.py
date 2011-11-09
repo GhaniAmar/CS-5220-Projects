@@ -39,7 +39,7 @@ def make_plot(labels, outpath):
     xlabel(texify('Number of Graph Nodes'), fontsize=14)
     ylabel(texify('Time elapsed'), fontsize=14)
     title(texify('Floyd-Warshall OpenMP Weak Scaling'), fontsize=18)
-    legend(tuple(labels), loc=2)
+    legend(tuple(labels), loc=4)
     grid(True)
     savefig(outpath, transparent=True)
 
