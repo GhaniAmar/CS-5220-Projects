@@ -4,77 +4,114 @@
 #include <math.h>
 #include <unistd.h>
 #include "mt19937p.h"
-#include <mpi.h>
+/* #include <mpi.h> */
 
-int square(int n,               // Number of nodes
-           int* restrict l,     // Partial distance at step s
-           int* restrict lnew)  // Partial distance at step s+1
-{
-    int done = 1;
-    for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < n; ++i) {
-            int lij = lnew[j*n+i];
-            for (int k = 0; k < n; ++k) {
-                int lik = l[k*n+i];
-                int lkj = l[j*n+k];
+/* Returns integer indicating whether the local columns are done. */
+
+/* Idea is to keep a buffer of max number of columns per thread */
+/* Compute local interactions first */
+/* Set local columns to buffer */
+/* Send current buffer to the left (wrap around if at end) */
+/* Compute contributions */
+/* Repeat until we have computed everyone's contribution */
+/* Copy local columns into out_buffer */
+
+/* We use the ring sharing pattern to pass columns of the original matrix around.        */
+/* The columns are passed to the left (n-1) times until everyone has seen everything.    */
+/* Returns whether this thread is done. In the iteration loop, we reduce the done flags. */
+int mpi_square(int n, 
+               int* restrict l, 
+               int* restrict lnew, 
+               int* restrict in_buffer,
+               int* restrict out_buffer) {
+
+    int i, j, k, lij, lik, lkj, rank, size, rank_incr;
+    int local_columns, column, column_start, column_end, n_columns, done;
+    int donor, recipient, prev_column, out_columns;
+   
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    column_start  = (rank * n) / size;
+    column_end    = ((rank + 1) * n) / size;
+    local_columns = column_end - column_start;
+
+    /* Donor is thead we're receiving from, recipient is thread we're giving to */
+    donor = (rank + 1) % n;
+    recipient = (n + rank - 1) % n;
+
+    done = 1;
+
+    /* Do local computations (same k indexing shenanigans as detailed below) */
+    for (j = 0; j < local_columns; ++j) {
+        for (i = 0; i < n; ++i) {
+            lij = lnew[j*n + i];
+
+            for (k = column_start; k < column_end; ++k) {
+                lik = l[(k - column_start)*n + i];
+                lkj = l[j*n + k];
+
                 if (lik + lkj < lij) {
-                    lij = lik+lkj;
+                    lij = lik + lkj;
                     done = 0;
                 }
             }
-            lnew[j*n+i] = lij;
+
+            lnew[j*n + i] = lij;
         }
     }
+
+    /* Copy our columns into the in_buffer */
+    memcpy(in_buffer, l, n * n_columns * sizeof(int));
+
+    for (rank_incr = 1; rank_incr < n; ++rank_incr) {
+        /* Move in_buffer to out_buffer */
+        prev_column = (rank + rank_incr - 1) % n;
+        out_columns = ((prev_column + 1) * n) / size - (prev_column * n) / size;
+        memcpy(out_buffer, in_buffer, n * out_columns * sizeof(int));
+
+        /* Compute number of columns expecting from the right */
+        column       = (rank + rank_incr) % n;
+        column_start = (column * n) / size;        
+        column_end   = ((column + 1) * n) / size;  
+        n_columns    = column_end - column_start;
+
+        /* Send out_buffer to recipient, receive in_buffer from donor */
+        MPI_Sendrecv(out_buffer, n * out_columns, MPI_INT, recipient, 0,
+                     in_buffer, n * n_columns, MPI_INT, donor, 0,
+                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        /* This is a little tricky. The i and j indexes are local indexes in  */
+        /* columns (i.e. column number starts at zero for all threads). The k */
+        /* index, on the other hand, is a global index and is converted when  */
+        /* we access the communication buffers.                               */
+        for (j = 0; j < local_columns; ++j) {
+            for (i = 0; i < n; ++i) {
+                lij = lnew[j*n + i];
+              
+                for (k = column_start; k < column_end; ++k) {
+                    lik = in_buffer[(k - column_start)*n + i];
+                    lkj = l[j*n + k];                         
+                    
+                    if (lik + lkj < lij) {
+                        lij = lik + lkj;
+                        done = 0;
+                    }
+                }
+
+                lnew[j*n + i] = lij;
+            } 
+        }
+    }
+
     return done;
 }
 
-/* Returns integer indicating whether the local columns are done. */
-int mpi_square(int n, int n_columns, int* restrict l, int* restrict lnew) {
-
-    /* Idea is to keep a buffer of max number of columns per thread */
-    /* Compute local interactions first */
-    /* Set local columns to buffer */
-    /* Send current buffer to the right (wrap around if at end) */
-    /* Compute contributions */
-    /* Repeat until we have computed everyone's contribution */
-    return 1;
-}
-
-static inline void infinitize(int n, int* l)
-{
-    for (int i = 0; i < n*n; ++i)
-        if (l[i] == 0)
-            l[i] = n+1;
-}
-
-static inline void deinfinitize(int n, int* l)
-{
-    for (int i = 0; i < n*n; ++i)
-        if (l[i] == n+1)
-            l[i] = 0;
-}
-
-void shortest_paths(int n, int* restrict l, int* iter)
-{
-    // Generate l_{ij}^0 from adjacency matrix representation
-    infinitize(n, l);
-    for (int i = 0; i < n*n; i += n+1)
-        l[i] = 0;
-
-    // Repeated squaring until nothing changes
-    int* restrict lnew = (int*) calloc(n*n, sizeof(int));
-    memcpy(lnew, l, n*n * sizeof(int));
-    for (int done = 0; !done; ) {
-        done = square(n, l, lnew);
-        memcpy(l, lnew, n*n * sizeof(int));
-    }
-    free(lnew);
-    deinfinitize(n, l);
-}
-
-int mpi_shortest_paths(int n, int* restrict l, int n_columns) {
+mpi_shortest_paths(int n, int* restrict l, int n_columns) {
     int i, iter, all_done, done;
-    int* restrict lnew = (int*) calloc(n * n_columns, sizeof(int));
+    int* restrict lnew = calloc(n * n_columns, sizeof(int));
+    int* restrict in_buffer = calloc(n * (n_columns + 1), sizeof(int));
+    int* restrict out_buffer = calloc(n * (n_columns + 1), sizeof(int));
     memcpy(lnew, l, n * n_columns * sizeof(int));
 
     /* Infinitize the local columns */
@@ -84,11 +121,13 @@ int mpi_shortest_paths(int n, int* restrict l, int n_columns) {
 
     /* Iterate until MPI_Allreduce tells us we are done */
     for (iter = all_done = 0; !all_done; ++iter) {
-        done = mpi_square(n, n_columns, l, lnew);
+        done = mpi_square(n, l, lnew, in_buffer, out_buffer);
         MPI_Allreduce(&done, &all_done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
         memcpy(l, lnew, n * n_columns * sizeof(int));
     }
 
+    free(out_buffer);
+    free(in_buffer);
     free(lnew);
 
     /* Deinfinitize the local columns */
@@ -123,13 +162,14 @@ int* mpi_gen_graph(const int n, const double p, const int n_columns) {
 
     if (rank == 0) {
         struct mt19937p state;
+        sgenrand(10302011UL, &state);
         int graph[n * n];
 
         /* Generate random graph */
         for (j = 0; j < n; ++j) {
             for (i = 0; i < n; ++i)
-                l[j*n + i] = (genrand(&state) < p);
-            l[j*n + j] = 0;
+                graph[j*n + i] = (genrand(&state) < p);
+            graph[j*n + j] = 0;
         }
 
         /* Copy my columns into local buffer */
@@ -151,6 +191,32 @@ int* mpi_gen_graph(const int n, const double p, const int n_columns) {
         /* Receive columns from head thread */
         MPI_Recv(l, n_columns * n, MPI_INT, 0, 0,
                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    return l;
+}
+
+int* mpi_gen_graph2(int n, double p, int column_start, int n_columns) {
+    int i, j, id, rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    int* l = calloc(n * n_columns, sizeof(int));
+    struct mt19937p state;
+    sgenrand(10302011UL, &state);
+
+    /* Advance the PRNG to the correct state */
+    for (i = 0; i < n * column_start; ++i)
+      genrand(&state);
+
+    /* Generate the local columns */
+    for (j = 0; j < n_columns; ++j) {
+      for (i = 0; i < n; ++i)
+        l[j*n + i] = (genrand(&state) < p);
+      l[j*n + j] = 0;
+    }
+
+    /* Make sure everyone has generated before moving on */
+    MPI_Barrier(MPI_COMM_WORLD);
 
     return l;
 }
