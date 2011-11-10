@@ -77,8 +77,8 @@ int mpi_square(int n,
         n_columns    = column_end - column_start;
 
         /* Send out_buffer to recipient, receive in_buffer from donor */
-        MPI_Sendrecv(out_buffer, n * out_columns, MPI_INT, recipient, 0,
-                     in_buffer, n * n_columns, MPI_INT, donor, 0,
+        MPI_Sendrecv(out_buffer, n * out_columns, MPI_INT, recipient, recipient,
+                     in_buffer, n * n_columns, MPI_INT, donor, rank,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         /* This is a little tricky. The i and j indexes are local indexes in  */
