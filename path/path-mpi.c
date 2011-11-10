@@ -4,17 +4,7 @@
 #include <math.h>
 #include <unistd.h>
 #include "mt19937p.h"
-/* #include <mpi.h> */
-
-/* Returns integer indicating whether the local columns are done. */
-
-/* Idea is to keep a buffer of max number of columns per thread */
-/* Compute local interactions first */
-/* Set local columns to buffer */
-/* Send current buffer to the left (wrap around if at end) */
-/* Compute contributions */
-/* Repeat until we have computed everyone's contribution */
-/* Copy local columns into out_buffer */
+#include <mpi.h>
 
 /* We use the ring sharing pattern to pass columns of the original matrix around.        */
 /* The columns are passed to the left (n-1) times until everyone has seen everything.    */
@@ -246,10 +236,6 @@ void write_matrix(const char* fname, int n, int* a)
     }
     fclose(fp);
 }
-
-/*@T
- * \section{The [[main]] event}
- *@c*/
 
 const char* usage =
     "path.x -- Parallel all-pairs shortest path on a random graph\n"
