@@ -3,39 +3,9 @@
 #include <string.h>
 #include <math.h>
 #include <unistd.h>
-#include <omp.h>
 #include "mt19937p.h"
+#include <mpi.h>
 
-/*@T
- * \section{The basic recurrence}
- *
- * At the heart of the method is the following basic recurrence.
- * If $l_{ij}^s$ represents the length of the shortest path from
- * $i$ to $j$ that can be attained in at most $2^s$ steps, then
- * \[
- *   l_{ij}^{s+1} = \min_k \{ l_{ik}^s + l_{kj}^2 \}.
- * \]
- * That is, the shortest path of at most $2^{s+1}$ hops that connects
- * $i$ to $j$ consists of two segments of length at most $2^s$, one
- * from $i$ to $k$ and one from $k$ to $j$.  Compare this with the
- * following formula to compute the entries of the square of a
- * matrix $A$:
- * \[
- *   a_{ij}^2 = \sum_k a_{ik} a_{kj}.
- * \]
- * These two formulas are identical, save for the niggling detail that
- * the latter has addition and multiplication where the former has min
- * and addition.  But the basic pattern is the same, and all the
- * tricks we learned when discussing matrix multiplication apply -- or
- * at least, they apply in principle.  I'm actually going to be lazy
- * in the implementation of [[square]], which computes one step of
- * this basic recurrence.  I'm not trying to do any clever blocking.
- * You may choose to be more clever in your assignment, but it is not
- * required.
- *
- * The return value for [[square]] is true if [[l]] and [[lnew]] are
- * identical, and false otherwise.
- *@c*/
 int square(int n,               // Number of nodes
            int* restrict l,     // Partial distance at step s
            int* restrict lnew)  // Partial distance at step s+1
@@ -58,19 +28,18 @@ int square(int n,               // Number of nodes
     return done;
 }
 
-/*@T
- *
- * The value $l_{ij}^0$ is almost the same as the $(i,j)$ entry of
- * the adjacency matrix, except for one thing: by convention, the
- * $(i,j)$ entry of the adjacency matrix is zero when there is no
- * edge between $i$ and $j$; but in this case, we want $l_{ij}^0$
- * to be ``infinite''.  It turns out that it is adequate to make
- * $l_{ij}^0$ longer than the longest possible shortest path; if
- * edges are unweighted, $n+1$ is a fine proxy for ``infinite.''
- * The functions [[infinitize]] and [[deinfinitize]] convert back
- * and forth between the zero-for-no-edge and $n+1$-for-no-edge
- * conventions.
- *@c*/
+/* Returns integer indicating whether the local columns are done. */
+int mpi_square(int n, int n_columns, int* restrict l, int* restrict lnew) {
+
+    /* Idea is to keep a buffer of max number of columns per thread */
+    /* Compute local interactions first */
+    /* Set local columns to buffer */
+    /* Send current buffer to the right (wrap around if at end) */
+    /* Compute contributions */
+    /* Repeat until we have computed everyone's contribution */
+    return 1;
+}
+
 static inline void infinitize(int n, int* l)
 {
     for (int i = 0; i < n*n; ++i)
@@ -85,20 +54,7 @@ static inline void deinfinitize(int n, int* l)
             l[i] = 0;
 }
 
-/*@T
- *
- * Of course, any loop-free path in a graph with $n$ nodes can
- * at most pass theough every node in the graph.  Therefore,
- * once $2^s \geq n$, the quantity $l_{ij}^s$ is actually
- * the length of the shortest path of any number of hops.  This means
- * we can compute the shortest path lengths for all pairs of nodes
- * in the graph by $\lceil \lg n \rceil$ repeated squaring operations.
- *
- * The [[shortest_path]] routine attempts to save a little bit of work
- * by only repeatedly squaring until two successive matrices are the
- * same (as indicated by the return value of the [[square]] routine).
- *@c*/
-void shortest_paths(int n, int* restrict l)
+void shortest_paths(int n, int* restrict l, int* iter)
 {
     // Generate l_{ij}^0 from adjacency matrix representation
     infinitize(n, l);
@@ -116,16 +72,33 @@ void shortest_paths(int n, int* restrict l)
     deinfinitize(n, l);
 }
 
-/*@T
- * \section{The random graph model}
- *
- * Of course, we need to run the shortest path algorithm on something!
- * For the sake of keeping things interesting, let's use a simple random graph
- * model to generate the input data.  The $G(n,p)$ model simply includes each
- * possible edge with probability $p$, drops it otherwise -- doesn't get much
- * simpler than that.  We use a thread-safe version of the Mersenne twister
- * random number generator in lieu of coin flips.
- *@c*/
+int mpi_shortest_paths(int n, int* restrict l, int n_columns) {
+    int i, iter, all_done, done;
+    int* restrict lnew = (int*) calloc(n * n_columns, sizeof(int));
+    memcpy(lnew, l, n * n_columns * sizeof(int));
+
+    /* Infinitize the local columns */
+    for (i = 0; i < n_columns * n; ++i)
+        if (l[i] == 0)
+            l[i] = n + 1;
+
+    /* Iterate until MPI_Allreduce tells us we are done */
+    for (iter = all_done = 0; !all_done; ++iter) {
+        done = mpi_square(n, n_columns, l, lnew);
+        MPI_Allreduce(&done, &all_done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
+        memcpy(l, lnew, n * n_columns * sizeof(int));
+    }
+
+    free(lnew);
+
+    /* Deinfinitize the local columns */
+    for (i = 0; i < n_columns * n; ++i)
+        if (l[i] == n + 1)
+            l[i] = 0;
+
+    return iter;
+}
+
 int* gen_graph(int n, double p)
 {
     int* l = calloc(n*n, sizeof(int));
@@ -139,23 +112,49 @@ int* gen_graph(int n, double p)
     return l;
 }
 
-/*@T
- * \section{Result checks}
- *
- * Simple tests are always useful when tuning code, so I have included
- * two of them.  Since this computation doesn't involve floating point
- * arithmetic, we should get bitwise identical results from run to run,
- * even if we do optimizations that change the associativity of our
- * computations.  The function [[fletcher16]] computes a simple
- * checksum\footnote{%
- * \url{http://en.wikipedia.org/wiki/Fletcher's_checksum}
- * }
- * over the output of the [[shortest_paths]] routine, which we
- * can then use to quickly tell whether something has gone wrong.
- * The [[write_matrix]] routine actually writes out a text representation
- * of the matrix, in case we want to load it into MATLAB to compare
- * results.
- *@c*/
+/* We generate the graph on the first thread and then send the pieces out */
+/* Could refine even more to interleave generating and sending! */
+int* mpi_gen_graph(const int n, const double p, const int n_columns) {
+    int i, j, id, rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    int* l = calloc(n * n_columns, sizeof(int));
+
+    if (rank == 0) {
+        struct mt19937p state;
+        int graph[n * n];
+
+        /* Generate random graph */
+        for (j = 0; j < n; ++j) {
+            for (i = 0; i < n; ++i)
+                l[j*n + i] = (genrand(&state) < p);
+            l[j*n + j] = 0;
+        }
+
+        /* Copy my columns into local buffer */
+        for (j = 0; j < n_columns; ++j)
+            for (i = 0; i < n; ++i)
+                l[j*n + i] = graph[j*n + i];
+
+        /* Send other columns out to minions */
+        for (id = 1; id < rank; ++id) {
+            const int id_column_start = (id * n) / size;
+            const int id_column_end   = ((id + 1) * n) / size;
+            const int id_n_columns    = id_column_end - id_column_start;
+
+            MPI_Send(graph + n * id_column_start, id_n_columns * n,
+                     MPI_INT, id, 0, MPI_COMM_WORLD);
+        }
+    }
+    else
+        /* Receive columns from head thread */
+        MPI_Recv(l, n_columns * n, MPI_INT, 0, 0,
+                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+    return l;
+}
+
 int fletcher16(int* data, int count)
 {
     int sum1 = 0;
@@ -200,6 +199,12 @@ int main(int argc, char** argv)
     double p = 0.05;           // Edge probability
     const char* ifname = NULL; // Adjacency matrix file name
     const char* ofname = NULL; // Distance matrix file name
+    int rank, size, iter;
+    double t0 = 0;;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Option processing
     extern char* optarg;
@@ -217,18 +222,39 @@ int main(int argc, char** argv)
         }
     }
 
-    // Graph generation + output
-    int* l = gen_graph(n, p);
-    if (ifname)
-        write_matrix(ifname,  n, l);
+    const int column_start = (rank * n) / size;         /* Beginning column index in global matrix */
+    const int column_end   = ((rank + 1) * n) / size;   /* End column index in global matrix */
+    const int n_columns    = column_end - column_start; /* Number of columns this thread owns */
 
-    shortest_paths(n, l);
+    int* l = mpi_gen_graph(n, p, n_columns);
 
-    // Generate output file
-    if (ofname)
-        write_matrix(ofname, n, l);
+    if (rank == 0) {
+        if (ifname)
+            printf("This version does not support exporting graphs.\n");
 
-    // Clean up
+        t0 = MPI_Wtime();
+    }
+
+    iter = mpi_shortest_paths(n, l, n_columns);
+
+    /* Need to implement checksum that gathers */
+
+    if (rank == 0) {
+        printf("== MPI with %d threads\n", size);
+        printf("n:         %d\n", n);
+        printf("p:         %g\n", p);
+        printf("squares:   %d\n", iter);
+        printf("Time:      %g\n", MPI_Wtime() - t0);
+        /* printf("Check:     %X\n", fletcher16(l, n*n)); */
+
+        /* Generate output file */
+        if (ofname)
+            printf("This version does not support exporting graphs.\n");
+    }
+
+    /* Clean up whatever is left */
     free(l);
+    MPI_Finalize();
+
     return 0;
 }
