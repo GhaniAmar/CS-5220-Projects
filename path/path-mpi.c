@@ -17,8 +17,8 @@ int mpi_square(int n,
                int* restrict out_buffer) {
 
     int i, j, k, lij, lik, lkj, rank, size, rank_incr;
-    int local_columns, column, column_start, column_end, n_columns, done;
-    int donor, recipient, prev_column, out_columns;
+    int local_columns, column, column_start, column_end, done;
+    int donor, recipient, prev_column, in_columns, out_columns;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -29,6 +29,8 @@ int mpi_square(int n,
     column_start  = (rank * n) / size;
     column_end    = ((rank + 1) * n) / size;
     local_columns = column_end - column_start;
+
+    printf("Thread %d has columns %d to %d (%d columns).\n", rank, column_start, column_end, local_columns);
 
     /* Donor is thead we're receiving from, recipient is thread we're giving to */
     donor = (rank + 1) % size;
@@ -54,13 +56,12 @@ int mpi_square(int n,
             lnew[j*n + i] = lij;
         }
     }
-    printf("Thread %d completed local computation.\n", rank);
 
     /* Copy our columns into the in_buffer */
     memcpy(in_buffer, l, n * local_columns * sizeof(int));
 
-    for (rank_incr = 1; rank_incr < n; ++rank_incr) {
-        /* Compute column currently in in_buffer */
+    for (rank_incr = 1; rank_incr < size; ++rank_incr) {
+        /* Compute column currently inside in_buffer */
         prev_column = (rank + rank_incr - 1) % size;
         out_columns = ((prev_column + 1) * n) / size - (prev_column * n) / size;
 
@@ -71,11 +72,14 @@ int mpi_square(int n,
         column       = (rank + rank_incr) % size;
         column_start = (column * n) / size;
         column_end   = ((column + 1) * n) / size;
-        n_columns    = column_end - column_start;
+        in_columns   = column_end - column_start;
+
+        printf("Thread %d gives column chunk %d to the left and "
+               "receives %d to the right.\n", rank, prev_column, column);
 
         /* Send out_buffer to recipient, receive in_buffer from donor */
         MPI_Sendrecv(out_buffer, n * out_columns, MPI_INT, recipient, 0,
-                     in_buffer, n * n_columns, MPI_INT, donor, 0,
+                     in_buffer, n * in_columns, MPI_INT, donor, 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         /* This is a little tricky. The i and j indexes are local indexes in  */
