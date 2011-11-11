@@ -5,30 +5,34 @@
 #include <unistd.h>
 #include "mt19937p.h"
 #include <mpi.h>
+#include <assert.h>
 
 /* We use the ring sharing pattern to pass columns of the original matrix around.        */
 /* The columns are passed to the left (n-1) times until everyone has seen everything.    */
 /* Returns whether this thread is done. In the iteration loop, we reduce the done flags. */
-int mpi_square(int n, 
-               int* restrict l, 
-               int* restrict lnew, 
+int mpi_square(int n,
+               int* restrict l,
+               int* restrict lnew,
                int* restrict in_buffer,
                int* restrict out_buffer) {
 
     int i, j, k, lij, lik, lkj, rank, size, rank_incr;
     int local_columns, column, column_start, column_end, n_columns, done;
     int donor, recipient, prev_column, out_columns;
-   
+
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    /* The code below doesn't work with one thread, could copy in serial code */
+    assert(size > 1);
 
     column_start  = (rank * n) / size;
     column_end    = ((rank + 1) * n) / size;
     local_columns = column_end - column_start;
 
     /* Donor is thead we're receiving from, recipient is thread we're giving to */
-    donor = (rank + 1) % n;
-    recipient = (n + rank - 1) % n;
+    donor = (rank + 1) % size;
+    recipient = (size + rank - 1) % size;
 
     done = 1;
 
@@ -50,25 +54,28 @@ int mpi_square(int n,
             lnew[j*n + i] = lij;
         }
     }
+    printf("Thread %d completed local computation.\n", rank);
 
     /* Copy our columns into the in_buffer */
-    memcpy(in_buffer, l, n * n_columns * sizeof(int));
+    memcpy(in_buffer, l, n * local_columns * sizeof(int));
 
     for (rank_incr = 1; rank_incr < n; ++rank_incr) {
-        /* Move in_buffer to out_buffer */
-        prev_column = (rank + rank_incr - 1) % n;
+        /* Compute column currently in in_buffer */
+        prev_column = (rank + rank_incr - 1) % size;
         out_columns = ((prev_column + 1) * n) / size - (prev_column * n) / size;
+
+        /* Move in_buffer to out_buffer */
         memcpy(out_buffer, in_buffer, n * out_columns * sizeof(int));
 
         /* Compute number of columns expecting from the right */
-        column       = (rank + rank_incr) % n;
-        column_start = (column * n) / size;        
-        column_end   = ((column + 1) * n) / size;  
+        column       = (rank + rank_incr) % size;
+        column_start = (column * n) / size;
+        column_end   = ((column + 1) * n) / size;
         n_columns    = column_end - column_start;
 
         /* Send out_buffer to recipient, receive in_buffer from donor */
-        MPI_Sendrecv(out_buffer, n * out_columns, MPI_INT, recipient, recipient,
-                     in_buffer, n * n_columns, MPI_INT, donor, rank,
+        MPI_Sendrecv(out_buffer, n * out_columns, MPI_INT, recipient, 0,
+                     in_buffer, n * n_columns, MPI_INT, donor, 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         /* This is a little tricky. The i and j indexes are local indexes in  */
@@ -78,11 +85,11 @@ int mpi_square(int n,
         for (j = 0; j < local_columns; ++j) {
             for (i = 0; i < n; ++i) {
                 lij = lnew[j*n + i];
-              
+
                 for (k = column_start; k < column_end; ++k) {
                     lik = in_buffer[(k - column_start)*n + i];
-                    lkj = l[j*n + k];                         
-                    
+                    lkj = l[j*n + k];
+
                     if (lik + lkj < lij) {
                         lij = lik + lkj;
                         done = 0;
@@ -90,14 +97,14 @@ int mpi_square(int n,
                 }
 
                 lnew[j*n + i] = lij;
-            } 
+            }
         }
     }
 
     return done;
 }
 
-mpi_shortest_paths(int n, int* restrict l, int n_columns) {
+int mpi_shortest_paths(int n, int* restrict l, int n_columns) {
     int i, iter, all_done, done;
     int* restrict lnew = calloc(n * n_columns, sizeof(int));
     int* restrict in_buffer = calloc(n * (n_columns + 1), sizeof(int));
@@ -112,6 +119,8 @@ mpi_shortest_paths(int n, int* restrict l, int n_columns) {
     /* Iterate until MPI_Allreduce tells us we are done */
     for (iter = all_done = 0; !all_done; ++iter) {
         done = mpi_square(n, l, lnew, in_buffer, out_buffer);
+
+        /* MPI_LAND, a realm of MPI_COMM_WORLD */
         MPI_Allreduce(&done, &all_done, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
         memcpy(l, lnew, n * n_columns * sizeof(int));
     }
@@ -141,52 +150,8 @@ int* gen_graph(int n, double p)
     return l;
 }
 
-/* We generate the graph on the first thread and then send the pieces out */
-/* Could refine even more to interleave generating and sending! */
-int* mpi_gen_graph(const int n, const double p, const int n_columns) {
-    int i, j, id, rank, size;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-    int* l = calloc(n * n_columns, sizeof(int));
-
-    if (rank == 0) {
-        struct mt19937p state;
-        sgenrand(10302011UL, &state);
-        int graph[n * n];
-
-        /* Generate random graph */
-        for (j = 0; j < n; ++j) {
-            for (i = 0; i < n; ++i)
-                graph[j*n + i] = (genrand(&state) < p);
-            graph[j*n + j] = 0;
-        }
-
-        /* Copy my columns into local buffer */
-        for (j = 0; j < n_columns; ++j)
-            for (i = 0; i < n; ++i)
-                l[j*n + i] = graph[j*n + i];
-
-        /* Send other columns out to minions */
-        for (id = 1; id < rank; ++id) {
-            const int id_column_start = (id * n) / size;
-            const int id_column_end   = ((id + 1) * n) / size;
-            const int id_n_columns    = id_column_end - id_column_start;
-
-            MPI_Send(graph + n * id_column_start, id_n_columns * n,
-                     MPI_INT, id, 0, MPI_COMM_WORLD);
-        }
-    }
-    else
-        /* Receive columns from head thread */
-        MPI_Recv(l, n_columns * n, MPI_INT, 0, 0,
-                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-    return l;
-}
-
-int* mpi_gen_graph2(int n, double p, int column_start, int n_columns) {
-    int i, j, id, rank, size;
+int* mpi_gen_graph(int n, double p, int column_start, int n_columns) {
+    int i, j, rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
@@ -196,17 +161,20 @@ int* mpi_gen_graph2(int n, double p, int column_start, int n_columns) {
 
     /* Advance the PRNG to the correct state */
     for (i = 0; i < n * column_start; ++i)
-      genrand(&state);
+        genrand(&state);
 
     /* Generate the local columns */
     for (j = 0; j < n_columns; ++j) {
-      for (i = 0; i < n; ++i)
-        l[j*n + i] = (genrand(&state) < p);
-      l[j*n + j] = 0;
+        for (i = 0; i < n; ++i)
+            l[j*n + i] = (genrand(&state) < p);
+        l[j*n + j] = 0;
     }
 
     /* Make sure everyone has generated before moving on */
     MPI_Barrier(MPI_COMM_WORLD);
+
+    if (rank == 0)
+        printf("Created graph successfully.\n");
 
     return l;
 }
@@ -278,31 +246,54 @@ int main(int argc, char** argv)
     const int column_end   = ((rank + 1) * n) / size;   /* End column index in global matrix */
     const int n_columns    = column_end - column_start; /* Number of columns this thread owns */
 
-    int* l = mpi_gen_graph(n, p, n_columns);
+    int i, thread, count;
+    int* l = mpi_gen_graph(n, p, column_start, n_columns);
 
     if (rank == 0) {
         if (ifname)
-            printf("This version does not support exporting graphs.\n");
+            printf("This version does not support exporting the generated graph.\n");
+
+        /* int matrix[n * n]; */
+
+        /* for (i = 0; i < n_columns * n; ++i) */
+        /*     matrix[i] = l[i]; */
 
         t0 = MPI_Wtime();
     }
 
     iter = mpi_shortest_paths(n, l, n_columns);
 
-    /* Need to implement checksum that gathers */
-
     if (rank == 0) {
+        int matrix[n * n];
+
+        for (i = 0; i < n_columns * n; ++i)
+            matrix[i] = l[i];
+
+        for (thread = 1; thread < size; ++thread) {
+            count = ((thread + 1) * n) / size - (thread * n) / size;
+
+            MPI_Recv(&(matrix[i]), n * count, MPI_INT, thread, 0,
+                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            printf("Received %d entries from %d. Counter is at %d.\n", n * count, thread, i);
+
+            i += n * count;
+        }
+
         printf("== MPI with %d threads\n", size);
         printf("n:         %d\n", n);
         printf("p:         %g\n", p);
         printf("squares:   %d\n", iter);
         printf("Time:      %g\n", MPI_Wtime() - t0);
-        /* printf("Check:     %X\n", fletcher16(l, n*n)); */
+        printf("Check:     %X\n", fletcher16(matrix, n*n));
 
         /* Generate output file */
         if (ofname)
-            printf("This version does not support exporting graphs.\n");
+            write_matrix(ofname, n, matrix);
     }
+    else
+        MPI_Send(l, n * n_columns, MPI_INT, 0, 0, MPI_COMM_WORLD);
+
 
     /* Clean up whatever is left */
     free(l);
