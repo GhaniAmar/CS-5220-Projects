@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+#$ -cwd
+#$ -j y
+#$ -S /bin/bash
+#
+
+export PATH=$PATH:/share/apps/local/hpctoolkit/bin
+hpcstruct path-omp.x
+hpcrun ./path-omp.x -n 1200
+hpcprof -S path-omp.x.hpcstruct -I `pwd`/'*' hpctoolkit-path-omp.x-measurements-XXXXX

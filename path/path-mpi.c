@@ -108,9 +108,9 @@ int mpi_square(int n,
 
 int mpi_shortest_paths(int n, int* restrict l, int n_columns, int column_start) {
     int i, j, iter, all_done, done;
-    int* restrict lnew = calloc(n * n_columns, sizeof(int));
-    int* restrict in_buffer = calloc(n * (n_columns + 1), sizeof(int));
-    int* restrict out_buffer = calloc(n * (n_columns + 1), sizeof(int));
+    int* lnew = calloc(n * n_columns, sizeof(int));
+    int* in_buffer = calloc(n * (n_columns + 1), sizeof(int));
+    int* out_buffer = calloc(n * (n_columns + 1), sizeof(int));
 
     /* Infinitize the local columns */
     for (j = 0; j < n_columns; ++j)
