@@ -6,7 +6,7 @@ from matplotlib.pyplot import figure, axes, semilogx, plot, xlabel, ylabel, titl
 
 rc('text', usetex=True)
 
-plotter = loglog
+plotter = plot
 
 def read_file(path):
     handle = open(path, 'r')
@@ -37,17 +37,17 @@ def plot_folder(path, labels):
 
 def make_plot(labels, outpath):
     xlabel(texify('Number of Graph Nodes'), fontsize=14)
-    ylabel(texify('Time elapsed'), fontsize=14)
+    ylabel(texify('Time elapsed (s)'), fontsize=14)
     title(texify('Floyd-Warshall OpenMP Weak Scaling'), fontsize=18)
-    legend(tuple(labels), loc=4)
+    legend(tuple(labels), loc=2)
     grid(True)
     savefig(outpath, transparent=True)
 
 def strong_plot(outpath, x, y):
-    plot(x, y)
+    plot(x, [max(y) / i for i in y])
 
     xlabel(texify('Number of Threads'), fontsize=14)
-    ylabel(texify('Time elapsed'), fontsize=14)
+    ylabel(texify('Speedup'), fontsize=14)
     title(texify('Floyd-Warshall OpenMP Strong Scaling'), fontsize=18)
     grid(True)
     savefig(outpath, transparent=True)
