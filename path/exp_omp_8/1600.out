@@ -1,0 +1,6 @@
+== OpenMP with 8 threads
+n:         1600
+p:         0.05
+squares:   3
+Time:      20.7929
+Check:     65E1
