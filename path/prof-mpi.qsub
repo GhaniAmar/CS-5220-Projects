@@ -10,5 +10,4 @@
 export PATH=$PATH:/share/apps/local/hpctoolkit/bin
 
 hpcstruct path-mpi.x
-hpcrun /opt/openmpi/bin/mpirun -np $NSLOTS ./path-mpi.x -n 1200
-hpcprof -S path-mpi.x.hpcstruct -I `pwd`/'*' hpctoolkit-path-mpi.x-measurements-XXXXX
+/opt/openmpi/bin/mpirun -np $NSLOTS hpcrun ./path-mpi.x -n 1200

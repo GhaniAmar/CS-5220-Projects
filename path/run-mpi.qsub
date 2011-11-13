@@ -6,4 +6,4 @@
 #$ -pe orte 2
 #
 
-/opt/openmpi/bin/mpirun -np $NSLOTS ./path-mpi.x
+/opt/openmpi/bin/mpirun -np $NSLOTS ./path-mpi.x -n 1200
