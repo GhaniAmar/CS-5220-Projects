@@ -62,3 +62,4 @@ if __name__ == '__main__':
 
             for i in range(1, int(threads) + 1):
                 thread_qsub('path-mpi.x', int(start), i, results, qsub)
+                os.system('qsub %s' % qsub)
