@@ -1,0 +1,6 @@
+== MPI with 4 threads
+n:         1000
+p:         0.05
+squares:   3
+Time:      1.49906
+Check:     CC6A

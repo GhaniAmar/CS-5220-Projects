@@ -1,0 +1,6 @@
+== MPI with 2 threads
+n:         1150
+p:         0.05
+squares:   3
+Time:      25.555
+Check:     D74C

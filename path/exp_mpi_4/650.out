@@ -1,0 +1,6 @@
+== MPI with 4 threads
+n:         650
+p:         0.05
+squares:   3
+Time:      0.460444
+Check:     46BE

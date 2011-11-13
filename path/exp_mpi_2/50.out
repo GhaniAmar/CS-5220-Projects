@@ -1,0 +1,6 @@
+== MPI with 2 threads
+n:         50
+p:         0.05
+squares:   5
+Time:      0.00103402
+Check:     2DFC

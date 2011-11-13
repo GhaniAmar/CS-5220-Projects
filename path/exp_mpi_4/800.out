@@ -1,0 +1,6 @@
+== MPI with 4 threads
+n:         800
+p:         0.05
+squares:   3
+Time:      0.765164
+Check:     C008

@@ -1,0 +1,6 @@
+== MPI with 8 threads
+n:         1250
+p:         0.05
+squares:   3
+Time:      1.99602
+Check:     6C70

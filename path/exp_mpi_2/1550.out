@@ -1,0 +1,6 @@
+== MPI with 2 threads
+n:         1550
+p:         0.05
+squares:   3
+Time:      70.6286
+Check:     8994
