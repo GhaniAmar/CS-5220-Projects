@@ -6,36 +6,6 @@
 #include <omp.h>
 #include "mt19937p.h"
 
-/*@T
- * \section{The basic recurrence}
- *
- * At the heart of the method is the following basic recurrence.
- * If $l_{ij}^s$ represents the length of the shortest path from
- * $i$ to $j$ that can be attained in at most $2^s$ steps, then
- * \[
- *   l_{ij}^{s+1} = \min_k \{ l_{ik}^s + l_{kj}^2 \}.
- * \]
- * That is, the shortest path of at most $2^{s+1}$ hops that connects
- * $i$ to $j$ consists of two segments of length at most $2^s$, one
- * from $i$ to $k$ and one from $k$ to $j$.  Compare this with the
- * following formula to compute the entries of the square of a
- * matrix $A$:
- * \[
- *   a_{ij}^2 = \sum_k a_{ik} a_{kj}.
- * \]
- * These two formulas are identical, save for the niggling detail that
- * the latter has addition and multiplication where the former has min
- * and addition.  But the basic pattern is the same, and all the
- * tricks we learned when discussing matrix multiplication apply -- or
- * at least, they apply in principle.  I'm actually going to be lazy
- * in the implementation of [[square]], which computes one step of
- * this basic recurrence.  I'm not trying to do any clever blocking.
- * You may choose to be more clever in your assignment, but it is not
- * required.
- *
- * The return value for [[square]] is true if [[l]] and [[lnew]] are
- * identical, and false otherwise.
- *@c*/
 int square(int n,               // Number of nodes
            int* restrict l,     // Partial distance at step s
            int* restrict lnew)  // Partial distance at step s+1
