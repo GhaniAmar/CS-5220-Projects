@@ -3,7 +3,7 @@
 #$ -cwd
 #$ -j y
 #$ -S /bin/bash
-#$ -pe orte 2
+#$ -pe orte 8
 #
 
-/opt/openmpi/bin/mpirun -np $NSLOTS ./path-mpi.x -n 1200
+/opt/openmpi/bin/mpirun -np $NSLOTS ./path-mpi.x -n 1500

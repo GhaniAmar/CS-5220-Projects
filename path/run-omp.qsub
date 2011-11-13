@@ -5,4 +5,5 @@
 #$ -S /bin/bash
 #
 
-./path-omp.x
+export OMP_NUM_THREADS=8
+./path-omp.x -n 1500
