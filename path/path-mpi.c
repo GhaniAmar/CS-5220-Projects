@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include "mt19937p.h"
 #include <mpi.h>
-#include <assert.h>
 
 /* We use the ring sharing pattern to pass columns of the original matrix around.        */
 /* The columns are passed to the left (n-1) times until everyone has seen everything.    */
@@ -38,14 +37,10 @@ int mpi_square(int n,
         for (i = 0; i < n; ++i) {
             lij = lnew[j*n + i];
 
-            if (i == j + column_start) assert(lij == 0);
-
             for (k = column_start; k < column_end; ++k) {
                 lik = l[(k - column_start)*n + i];
                 lkj = l[j*n + k];
 
-                /* if (i != j) */
-                /*     printf("lik = %d, lkj = %d, lij = %d\n", lik, lkj, lij); */
 
                 if (lik + lkj < lij) {
                     lij = lik + lkj;

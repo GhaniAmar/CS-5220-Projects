@@ -1,6 +1,6 @@
 CC=gcc
 MPICC=mpicc
-CFLAGS=-Wall -g -std=gnu99
+CFLAGS=-Wall -g -O3 -std=gnu99
 
 .PHONY: exe clean realclean
 
