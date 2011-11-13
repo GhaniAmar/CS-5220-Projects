@@ -1,0 +1,6 @@
+== MPI with 5 threads
+n:         2000
+p:         0.05
+squares:   3
+Time:      18.5666
+Check:     E16C
