@@ -1,0 +1,5 @@
+== OpenMP with 6 threads
+n:     100
+p:     0.05
+Time:  0.00248003
+Check: D30F

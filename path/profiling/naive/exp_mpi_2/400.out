@@ -1,0 +1,10 @@
+checkpoint1
+checkpoint2
+checkpoint3
+checkpoint4
+checkpoint5
+== OpenMP with 2 threads
+n:     400
+p:     0.05
+Time:  0.175406
+Check: 4312

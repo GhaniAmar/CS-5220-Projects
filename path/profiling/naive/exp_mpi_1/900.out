@@ -1,0 +1,6 @@
+== MPI with 1 threads
+n:         900
+p:         0.05
+squares:   3
+Time:      24.1381
+Check:     7F85

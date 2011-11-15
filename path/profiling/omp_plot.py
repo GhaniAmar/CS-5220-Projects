@@ -6,7 +6,7 @@ from matplotlib.pyplot import figure, axes, semilogx, plot, xlabel, ylabel, titl
 
 rc('text', usetex=True)
 
-plotter = plot
+plotter = loglog
 
 def read_file(path):
     handle = open(path, 'r')
@@ -44,7 +44,7 @@ def make_plot(labels, outpath):
     savefig(outpath, transparent=True)
 
 def strong_plot(outpath, x, y):
-    plot(x, [max(y) / i for i in y])
+    plot(x, [y[0]/i for i in y])
 
     xlabel(texify('Number of Threads'), fontsize=14)
     ylabel(texify('Speedup'), fontsize=14)

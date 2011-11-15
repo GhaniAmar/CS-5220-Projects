@@ -44,7 +44,9 @@ def make_plot(labels, outpath):
     savefig(outpath, transparent=True)
 
 def strong_plot(outpath, x, y):
-    plot(x, y)
+    single = y[0]
+
+    plot(x, [single/i for i in y])
 
     xlabel(texify('Number of Threads'), fontsize=14)
     ylabel(texify('Time taken (s)'), fontsize=14)
@@ -52,8 +54,71 @@ def strong_plot(outpath, x, y):
     grid(True)
     savefig(outpath, transparent=True)
 
+def timing_plot(folder, data, outpath):
+    (n, computation, communication, total) = data
+
+    threads = int(folder[-1])
+
+    plotter(n, computation, label = texify('Computation'))
+    plotter(n, communication, label = texify('Communication'))
+    plotter(n, total, label = texify('Total time'))
+
+    xlabel(texify('Number of Graph Nodes'), fontsize=14)
+    ylabel(texify('Time elapsed (s)'), fontsize=14)
+    title(texify('Time Breakdown for MPI Ring Implementation with %d Processors' % threads),
+          fontsize=18)
+    legend((texify('Computation'), texify('Communication'), texify('Total time')), loc=2)
+    grid(True)
+    savefig(outpath, transparent=True)
+
+def single_plot(folder, data, outpath):
+    (n, computation, communication, total) = data
+
+    threads = int(folder[-1])
+
+    plotter(n, communication, label = texify('Communication'))
+
+    xlabel(texify('Number of Graph Nodes'), fontsize=14)
+    ylabel(texify('Time elapsed (s)'), fontsize=14)
+    title(texify('Communication Time for MPI Ring Implementation with %d Processors' % threads),
+          fontsize=18)
+    grid(True)
+    savefig(outpath, transparent=True)
+
+
 def texify(string):
     return r"$\mathrm{%s}$" % string.replace(' ', '\ ')
+
+def read_timing(path):
+    file = open(path, 'r')
+    lines = [x.strip() for x in file.readlines()]
+    file.close()
+
+    computation = float(lines[0].split()[1])
+    communication = float(lines[1].split()[1])
+    total = float(lines[2].split()[1])
+
+    return (computation, communication, total)
+
+def read_timings(folder):
+    files = os.listdir(folder)
+    files.sort(key = lambda x : int(x[:-4]))
+
+    n = []
+    computation = []
+    communication = []
+    total = []
+
+    acc = []
+
+    for f in files:
+        n.append(int(f[:-4]))
+        comp, comm, totes = read_timing(folder + '/' + f)
+        computation.append(comp)
+        communication.append(comm)
+        total.append(totes)
+
+    return (n, computation, communication, total)
 
 if __name__ == '__main__':
     labels = []
@@ -78,3 +143,15 @@ if __name__ == '__main__':
         x, y = zip(*data)
 
         strong_plot(sys.argv[-1], x, y)
+
+    elif sys.argv[1] == 'timing':
+        folder = sys.argv[2]
+        outpath = sys.argv[3]
+        data = read_timings(folder)
+        timing_plot(folder, data, outpath)
+
+    elif sys.argv[1] == 'single':
+        folder = sys.argv[2]
+        outpath = sys.argv[3]
+        data = read_timings(folder)
+        single_plot(folder, data, outpath)
