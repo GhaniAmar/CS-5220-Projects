@@ -63,3 +63,27 @@ if __name__ == '__main__':
             for i in range(1, int(threads) + 1):
                 thread_qsub('path-mpi.x', int(start), i, results, qsub)
                 os.system('qsub %s' % qsub)
+
+        elif experiment == 'timing':
+            results = 'exp_mpi_timing_' + threads
+            qsub = 'run_mpi_timing_%s_nodes.qsub' % threads
+            os.system('rm -r -f %s' % results)
+            os.system('mkdir %s' % results)
+            os.system('make')
+
+            node_qsub('mpi-timing.x', range(int(start), int(stop), int(step)),
+                      int(threads), results, qsub)
+
+            os.system('qsub %s' % qsub)
+
+        elif experiment == 'naive':
+            results = 'exp_naive_timing_' + threads
+            qsub = 'run_naive_timing_%s_nodes.qsub' % threads
+            os.system('rm -r -f %s' % results)
+            os.system('mkdir %s' % results)
+            os.system('make')
+
+            node_qsub('naive-paths.x', range(int(start), int(stop), int(step)),
+                      int(threads), results, qsub)
+
+            os.system('qsub %s' % qsub)

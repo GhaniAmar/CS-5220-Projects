@@ -1,0 +1,5 @@
+== OpenMP with 4 threads
+n:     800
+p:     0.05
+Time:  3.97681
+Check: C008

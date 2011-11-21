@@ -7,7 +7,7 @@ CFLAGS=-Wall -g -O3 -std=gnu99
 
 # === Executables
 
-exe: path-omp.x path-mpi.x
+exe: path-omp.x path-mpi.x mpi-timing.x naive-paths.x
 
 path-omp.x: path-omp.o mt19937p.o
 	$(CC) -fopenmp $(CFLAGS) $^ -o $@
@@ -17,6 +17,18 @@ path-omp.o: path-omp.c
 
 path-mpi.x: path-mpi.o mt19937p.o
 	$(MPICC) $(CFLAGS) $^ -o $@
+
+mpi-timing.x: mpi-timing.o mt19937p.o
+	$(MPICC) $(CFLAGS) $^ -o $@
+
+mpi-timing.o: mpi-timing.c
+	$(MPICC) -c $(CFLAGS) $<
+
+naive-paths.x: naive-paths.o mt19937p.o
+	$(MPICC) $(CFLAGS) $^ -o $@
+
+naive-paths.o: naive-paths.c
+	$(MPICC) -c $(CFLAGS) $<
 
 path-mpi.o: path-mpi.c
 	$(MPICC) -c $(CFLAGS) $<
@@ -51,7 +63,7 @@ clean:
 	rm -f main.aux main.log main.out
 
 realclean: clean
-	rm -f path-omp.x path-mpi.x path-omp.tex main.pdf *.*~ run_omp*.qsub* *.pyc
+	rm -f path-omp.x path-mpi.x *.x path-omp.tex main.pdf *~ run_omp*.qsub* *.pyc
 
 tgz:
 	( cd ..; tar -czf path.tgz \
