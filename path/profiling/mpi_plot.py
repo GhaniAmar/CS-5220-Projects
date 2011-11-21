@@ -44,7 +44,8 @@ def make_plot(labels, outpath):
     savefig(outpath, transparent=True)
 
 def strong_plot(outpath, x, y):
-    plot(x, y)
+    yprime = [y[0]/y[i]/(i+1) for i in range(len(y))]
+    plot(x, yprime)
 
     xlabel(texify('Number of Threads'), fontsize=14)
     ylabel(texify('Time taken (s)'), fontsize=14)
